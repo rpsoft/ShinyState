@@ -51,6 +51,8 @@ use_state_hook <- function(initial, ctx) {
 }
 
 #' @rdname useState
+#' @param reducer Function `(state, action)` returning the new state.
+#' @param initial Initial reducer state.
 #' @export
 useReducer <- function(reducer, initial) {
   ctx <- get_hook_context()

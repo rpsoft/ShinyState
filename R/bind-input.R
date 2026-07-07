@@ -136,6 +136,8 @@ bindTextArea <- function(ns, input_id, label, value, rows = 3L, placeholder = NU
 
 #' Bound numeric input
 #' @rdname bindTextInput
+#' @param min,max,step Numeric constraints for [bindNumericInput()] and
+#'   [bindSlider()]; for [bindDateInput()], `min`/`max` are date bounds.
 #' @export
 bindNumericInput <- function(ns, input_id, label, value, min = NA, max = NA, step = NA, width = NULL, update = c("blur", "input"), debounce_ms = NULL) {
   warn_debounce_deprecated(debounce_ms)

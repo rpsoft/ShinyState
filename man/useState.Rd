@@ -21,6 +21,10 @@ useCallback(input_id, fn)
 \arguments{
 \item{...}{Named initial values. Each name becomes a state field.}
 
+\item{reducer}{Function \verb{(state, action)} returning the new state.}
+
+\item{initial}{Initial reducer state.}
+
 \item{fn}{Handler function. Receives the state accessor as the first
 argument. When wired through a \verb{bind*()} helper that sends a value, the
 event value is passed as the second argument.}

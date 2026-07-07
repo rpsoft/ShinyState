@@ -92,6 +92,9 @@ warning.}
 
 \item{rows}{Number of rows.}
 
+\item{min, max, step}{Numeric constraints for \code{\link[=bindNumericInput]{bindNumericInput()}} and
+\code{\link[=bindSlider]{bindSlider()}}; for \code{\link[=bindDateInput]{bindDateInput()}}, \code{min}/\code{max} are date bounds.}
+
 \item{choices}{Named vector of choices.}
 
 \item{selected}{Currently selected value.}
