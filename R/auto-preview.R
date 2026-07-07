@@ -132,6 +132,18 @@ tree_contains_typing_control <- function(ui) {
 }
 
 #' @keywords internal
+preserve_root_dependencies <- function(original, shell) {
+  if (!inherits(original, "shiny.tag.list") && !inherits(original, "tagList")) {
+    return(shell)
+  }
+  dep_fn <- attr(original, "html_dependencies", exact = TRUE)
+  if (!is.null(dep_fn)) {
+    attr(shell, "html_dependencies") <- dep_fn
+  }
+  shell
+}
+
+#' @keywords internal
 partition_ui <- function(ui, ns) {
   slots <- list()
   slot_counter <- 0L
@@ -184,6 +196,7 @@ partition_ui <- function(ui, ns) {
   }
 
   shell <- htmltools::tagList(!!!process_children(ui_children(ui)))
+  shell <- preserve_root_dependencies(ui, shell)
   list(ui = shell, slots = slots)
 }
 

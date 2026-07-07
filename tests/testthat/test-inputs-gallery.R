@@ -1,3 +1,21 @@
+test_that("partitioning preserves bootstrap dependencies from fluidPage", {
+  ns <- shiny::NS("form")
+  ui <- shiny::fluidPage(
+    shiny::fluidRow(
+      shiny::column(
+        6,
+        bindTextInput(ns, "title", "Title", "A", update = "input")
+      ),
+      shiny::column(6, shiny::p("preview"))
+    )
+  )
+
+  partitioned <- partition_ui(ui, ns)
+  dep_names <- vapply(htmltools::findDependencies(partitioned$ui), `[[`, character(1), "name")
+
+  expect_true("bootstrap" %in% dep_names)
+})
+
 test_that("inputs gallery partitions into stable controls and preview column", {
   skip_if_not_installed("jsonlite")
   path <- system.file("examples/inputs-gallery/app.R", package = "ShinyState")
