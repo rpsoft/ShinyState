@@ -60,6 +60,15 @@ Shared-state example across pages/components:
 shiny::runApp(system.file("examples/shared-store", package = "ShinyState"))
 ```
 
+## Tutorial presentation
+
+Slide deck: `inst/tutorial/shinystate-tutorial.Rmd`
+
+```r
+install.packages(c("rmarkdown", "revealjs"))
+rmarkdown::render(system.file("tutorial/shinystate-tutorial.Rmd", package = "ShinyState"))
+```
+
 ## API overview
 
 ### `component()`

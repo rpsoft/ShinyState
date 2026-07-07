@@ -1,0 +1,440 @@
+---
+title: "ShinyState Tutorial"
+subtitle: "React-style components and hooks for Shiny"
+author: "ShinyState"
+date: "`r format(Sys.Date())`"
+output:
+  revealjs::revealjs_presentation:
+    theme: moon
+    transition: slide
+    highlight: pygments
+    center: false
+    self_contained: true
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE, eval = FALSE, message = FALSE, warning = FALSE)
+```
+
+## Welcome
+
+**ShinyState** brings a React-inspired programming model to Shiny:
+
+- Components with local state
+- Hooks: `useState()`, `useEffect()`, `useMemo()`, `useReducer()`
+- No hand-written `reactive()` / `observe()` in app code
+
+---
+
+## The problem
+
+Classic Shiny spreads logic across:
+
+- `reactive()` values
+- `observe()` / `observeEvent()`
+- `renderUI()` / `renderText()`
+
+As apps grow, dependencies become hard to follow.
+
+---
+
+## The ShinyState idea
+
+Think in **components**:
+
+```r
+component(
+  id = "counter",
+  state = useState(count = 0L),
+  effect(deps = "count", function(state) { ... }),
+  render = function(state, ns) {
+    # hooks + UI
+  }
+)
+```
+
+Each component owns its state, effects, and render function.
+
+---
+
+## Install
+
+```{r}
+# install.packages("devtools")
+devtools::install_local("path/to/ShinyState")
+
+library(shiny)
+library(ShinyState)
+```
+
+---
+
+## Core workflow
+
+1. Define components with `component()`
+2. Mount UI with `mount()`
+3. Run server logic with `serve()`
+
+```{r}
+shinyApp(
+  ui = fluidPage(mount(counter)),
+  server = function(input, output, session) {
+    serve(counter, input, output, session)
+  }
+)
+```
+
+---
+
+## `component()`
+
+```{r}
+counter <- component(
+  id = "counter",
+  state = useState(count = 0L),
+  effect(
+    deps = "count",
+    function(state) {
+      message("Count is now: ", state$count)
+    }
+  ),
+  render = function(state, ns) {
+  }
+)
+```
+
+Returns a list with `ui`, `server`, and metadata.
+
+---
+
+## `useState()`
+
+Declare initial state at component definition time:
+
+```{r}
+state = useState(
+  page = 1L,
+  filter = NULL
+)
+```
+
+Inside `render()`, read and update via the `state` accessor:
+
+```{r}
+state$count          # read
+state$set(count = 5) # write + re-render
+state$all()          # snapshot
+```
+
+---
+
+## State updates
+
+Functional updates are supported:
+
+```{r}
+state$update(function(current) {
+  list(count = current$count + 1L)
+})
+```
+
+`state$set(...)` triggers a component re-render automatically.
+
+---
+
+## `effect()` / `useEffect()`
+
+Run side effects when dependencies change.
+
+**Declarative** (top-level in `component()`):
+
+```{r}
+effect(
+  deps = "filter",
+  function(state) {
+    state$set(page = 1L)  # reset page when filter changes
+  }
+)
+```
+
+- `deps = NULL` → run once on mount
+- Return a function from the effect to run cleanup
+
+---
+
+## `useMemo()`
+
+Cache expensive derived values:
+
+```{r}
+render = function(state, ns) {
+  doubled <- useMemo(
+    function() state$count * 2L,
+    deps = "count"
+  )
+
+  p(paste("Doubled:", doubled))
+}
+```
+
+Recomputes only when `count` changes.
+
+---
+
+## `useReducer()`
+
+For state transitions with actions:
+
+```{r}
+render = function(state, ns) {
+  reducer <- useReducer(
+    function(prev, action) {
+      switch(action,
+        add = c(prev, "new"),
+        drop = if (length(prev)) prev[-length(prev)] else prev,
+        prev
+      )
+    },
+    initial = character()
+  )
+
+  reducer$dispatch("add")
+  reducer$state
+}
+```
+
+---
+
+## `useCallback()` + `bindButton()`
+
+Wire button clicks to state updates:
+
+```{r}
+render = function(state, ns) {
+  useCallback("inc", function(s) {
+    s$set(count = s$count + 1L)
+  })
+
+  bindButton(ns, "inc", "+")
+}
+```
+
+**Important:** use `bindButton()`, not `actionButton()`, inside `render()`.
+
+---
+
+## Why `bindButton()`?
+
+`render()` output is rebuilt when state changes.
+
+Plain `actionButton()` values reset on re-render and can fire handlers twice.
+
+`bindButton()` dispatches through a single internal event channel.
+
+---
+
+## Minimal counter app
+
+```{r}
+counter <- component(
+  id = "counter",
+  state = useState(count = 0L),
+  render = function(state, ns) {
+    useCallback("inc", function(s) s$set(count = s$count + 1L))
+    useCallback("dec", function(s) s$set(count = s$count - 1L))
+
+    tagList(
+      h3(paste("Count:", state$count)),
+      bindButton(ns, "dec", "−"),
+      bindButton(ns, "inc", "+")
+    )
+  }
+)
+```
+
+---
+
+## Run the counter example
+
+```{r}
+shiny::runApp(
+  system.file("examples/counter", package = "ShinyState")
+)
+```
+
+Or from source before reinstalling:
+
+```{r}
+shiny::runApp("inst/examples/counter")
+```
+
+---
+
+## Multi-page apps
+
+Use Shiny tabs + one component per page:
+
+```{r}
+shinyApp(
+  ui = navbarPage(
+    "Multipage",
+    tabPanel("Dashboard", mount(counter_component)),
+    tabPanel("Search", mount(filter_component)),
+    tabPanel("Reducer", mount(reducer_component))
+  ),
+  server = function(input, output, session) {
+    serve(counter_component, input, output, session)
+    serve(filter_component, input, output, session)
+    serve(reducer_component, input, output, session)
+  }
+)
+```
+
+---
+
+## Multipage demo
+
+```{r}
+shiny::runApp(
+  system.file("examples/multipage", package = "ShinyState")
+)
+```
+
+Shows:
+
+- Counter (`useState`, `effect`, `useMemo`)
+- Filter + pagination (`effect` resets page)
+- Task list (`useReducer`)
+
+---
+
+## Shared state across components
+
+Components are isolated by default.
+
+For cross-page state, use a small store with subscribers:
+
+```{r}
+store <- createStore(list(count = 0L, history = character()))
+
+store$get()
+store$set(count = 1L)
+store$subscribe(function(data) { ... })
+```
+
+---
+
+## Subscribing in an effect
+
+```{r}
+effect(
+  deps = NULL,
+  function(state) {
+    unsubscribe <- shared_store$subscribe(function(data) {
+      state$set(count = data$count, history = data$history)
+    })
+
+    state$set(count = shared_store$get()$count)
+    unsubscribe  # cleanup on unmount
+  }
+)
+```
+
+---
+
+## Shared-store demo
+
+```{r}
+shiny::runApp(
+  system.file("examples/shared-store", package = "ShinyState")
+)
+```
+
+- **Controls** page updates global count/history
+- **History** page reflects changes live
+
+---
+
+## Under the hood
+
+ShinyState still uses Shiny internally, but hides it:
+
+1. Each component has a private state store
+2. `render()` runs in a hook context
+3. State changes invalidate an internal counter
+4. `renderUI()` rebuilds component UI
+5. Effects run after render when deps change
+
+---
+
+## Mental model
+
+| React | ShinyState |
+|-------|------------|
+| Component | `component()` |
+| `useState` | `useState()` |
+| `useEffect` | `effect()` / `useEffect()` |
+| `useMemo` | `useMemo()` |
+| `useReducer` | `useReducer()` |
+| onClick handler | `useCallback()` + `bindButton()` |
+
+---
+
+## Best practices
+
+- Keep one concern per component
+- Prefer `bindButton()` for actions inside `render()`
+- Use `effect()` for side effects, not UI logic
+- Use `useMemo()` for expensive derived values
+- Mount multiple components with `mount()` / `serve()`
+
+---
+
+## Troubleshooting
+
+| Symptom | Likely cause |
+|---------|----------------|
+| Blank component area | Old app process still running; restart R + app |
+| Handler fires twice | Used `actionButton()` instead of `bindButton()` |
+| `bindButton` not found | Reinstall latest package version |
+| Example path is `""` | Example not in installed package yet |
+
+---
+
+## API cheat sheet
+
+```{r}
+component(id, ..., render)
+useState(...)
+effect(deps, fn)
+useEffect(fn, deps)
+useMemo(fn, deps)
+useReducer(reducer, initial)
+useCallback(input_id, fn)
+bindButton(ns, input_id, label)
+mount(component)
+serve(component, input, output, session)
+```
+
+---
+
+## Next steps
+
+1. Run all three bundled examples
+2. Convert one existing module to `component()`
+3. Extract shared app state into a store pattern
+4. Build a multi-tab dashboard from small components
+
+---
+
+## Thank you
+
+Questions?
+
+Package repo: `ShinyState`
+
+Examples:
+
+- `examples/counter`
+- `examples/multipage`
+- `examples/shared-store`
