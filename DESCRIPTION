@@ -1,0 +1,20 @@
+Package: ShinyState
+Title: React-Style Hooks for Shiny Applications
+Version: 0.1.5
+Authors@R: person("ShinyState", role = c("aut", "cre"), email = "shinystate@example.com")
+Description: Provides a React-inspired component and hook system for Shiny
+    applications. Write UI with useState(), useEffect(), useMemo(), and
+    useReducer() instead of Shiny's reactive primitives.
+License: MIT
+Encoding: UTF-8
+Roxygen: list(markdown = TRUE)
+Imports:
+    shiny (>= 1.8.0),
+    htmltools (>= 0.5.0),
+    rlang (>= 1.0.0)
+Suggests:
+    testthat (>= 3.0.0),
+    knitr,
+    rmarkdown
+Config/testthat/edition: 3
+Config/roxygen2/version: 8.0.0
