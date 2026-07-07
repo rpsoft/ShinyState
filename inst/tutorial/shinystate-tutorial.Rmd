@@ -256,7 +256,43 @@ render = function(state, ns) {
 
 Rebuilding text inputs on every keystroke destroys focus.
 
-ShinyState **automatically** keeps `bindTextInput()`, `bindTextArea()`, and `bindNumericInput()` mounted while you type. Everything else in your `render()` live-updates as usual — no extra wrappers needed.
+ShinyState **automatically splits** your UI when typing controls are present:
+
+- **`bindTextInput()`**, **`bindTextArea()`**, and **`bindNumericInput()`** stay mounted in the shell
+- **Everything else** (headings, tables, summaries, preview panels) live-updates on its own
+- Works in **`tagList()`**, **`fluidPage()`**, **`fluidRow()` / `column()`** layouts
+
+No `preview()` wrapper needed in normal apps.
+
+```{r}
+render = function(state, ns) {
+  useInput("title")
+
+  fluidPage(
+    fluidRow(
+      column(
+        6,
+        bindTextInput(ns, "title", "Title", state$title, update = "input"),
+        bindTextArea(ns, "notes", "Notes", state$notes, update = "input")
+      ),
+      column(
+        6,
+        h3("Live preview"),
+        p(state$title),
+        p(state$notes)
+      )
+    )
+  )
+}
+```
+
+Use `update = "input"` for live preview while typing; `update = "blur"` (default) syncs on click-away.
+
+---
+
+## Optional: `preview()`
+
+Use `preview()` only when you need a **manual** split inside a mixed subtree:
 
 ```{r}
 render = function(state, ns) {
@@ -264,13 +300,15 @@ render = function(state, ns) {
 
   tagList(
     bindTextInput(ns, "title", "Title", state$title, update = "input"),
-    h3(state$title),
-    p("Characters:", nchar(state$title))
+    preview(
+      h3(state$title),
+      p("Characters:", nchar(state$title))
+    )
   )
 }
 ```
 
-Optional: use `preview()` to manually mark a dynamic region (rarely needed).
+Most apps never need this — auto-split handles it.
 
 ---
 
@@ -299,7 +337,11 @@ shiny::runApp(
 )
 ```
 
-Demonstrates every bound input type with a live preview panel.
+Two-column `fluidPage()` layout:
+
+- Left: every `bind*()` control
+- Right: live summary table + JSON state
+- Title and notes use `update = "input"`; other fields update on change/blur
 
 ---
 
@@ -431,10 +473,13 @@ ShinyState still uses Shiny internally, but hides it:
 
 1. Each component has a private state store
 2. `render()` runs in a hook context
-3. State changes invalidate an internal counter
-4. `renderUI()` rebuilds component UI
-5. Dynamic regions update separately so text inputs stay mounted
-6. Effects run after render when deps change
+3. State changes bump an internal version counter
+4. **Auto-split:** typing controls and other `bind*()` inputs stay in the stable shell
+5. Display-only regions render in separate `uiOutput` slots that update live
+6. While typing, only preview slots refresh — inputs keep focus
+7. Effects run after render when deps change
+
+Bootstrap / Shiny CSS from `fluidPage()` is preserved after auto-split.
 
 ---
 
@@ -457,7 +502,8 @@ ShinyState still uses Shiny internally, but hides it:
 
 - Keep one concern per component
 - Prefer `bindButton()` and `bind*()` helpers inside `render()` — not raw Shiny inputs
-- Text inputs keep focus automatically; put tables and summaries anywhere in `render()`
+- Put summaries, tables, and charts anywhere in `render()` — auto-split keeps typing controls stable
+- Use `update = "input"` on text fields when you want live preview while typing
 - Use `effect()` for side effects, not UI logic
 - Use `useMemo()` for expensive derived values
 - Mount multiple components with `mount()` / `serve()`
@@ -470,7 +516,9 @@ ShinyState still uses Shiny internally, but hides it:
 |---------|----------------|
 | Blank component area | Old app process still running; restart R + app |
 | Handler fires twice | Used `actionButton()` instead of `bindButton()` |
-| Text input loses focus after one character | Reinstall v0.4.0+; use `bindTextInput()` not raw `textInput()` |
+| Text input loses focus | Use `bindTextInput()` not raw `textInput()`; reinstall v0.4.0+ |
+| Preview only updates on blur | Text field uses `update = "blur"`; try `update = "input"` |
+| Layout looks unstyled | Reinstall v0.4.0+ (Bootstrap deps preserved after auto-split) |
 | `bindButton` / `preview` not found | Reinstall latest package version |
 | Example path is `""` | Example not in installed package yet |
 
@@ -487,9 +535,9 @@ useMemo(fn, deps)
 useReducer(reducer, initial)
 useCallback(input_id, fn)
 useInput(input_id, state_field)
-preview(...)
+preview(...)   # optional; auto-split is usually enough
 bindButton(ns, input_id, label)
-bindTextInput(ns, input_id, label, value, update = "blur")
+bindTextInput(ns, input_id, label, value, update = "input")
 bindSelect(ns, input_id, label, choices, selected)
 mount(component)
 serve(component, input, output, session)

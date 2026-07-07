@@ -686,22 +686,59 @@ callback</li>
 <section id="text-input-focus" class="slide level2">
 <h2>Text input focus</h2>
 <p>Rebuilding text inputs on every keystroke destroys focus.</p>
-<p>ShinyState <strong>automatically</strong> keeps
-<code>bindTextInput()</code>, <code>bindTextArea()</code>, and
-<code>bindNumericInput()</code> mounted while you type. Everything else
-in your <code>render()</code> live-updates as usual — no extra wrappers
-needed.</p>
+<p>ShinyState <strong>automatically splits</strong> your UI when typing
+controls are present:</p>
+<ul>
+<li><strong><code>bindTextInput()</code></strong>,
+<strong><code>bindTextArea()</code></strong>, and
+<strong><code>bindNumericInput()</code></strong> stay mounted in the
+shell</li>
+<li><strong>Everything else</strong> (headings, tables, summaries,
+preview panels) live-updates on its own</li>
+<li>Works in <strong><code>tagList()</code></strong>,
+<strong><code>fluidPage()</code></strong>,
+<strong><code>fluidRow()</code> / <code>column()</code></strong>
+layouts</li>
+</ul>
+<p>No <code>preview()</code> wrapper needed in normal apps.</p>
 <div class="sourceCode" id="cb13"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb13-1"><a href="#cb13-1" aria-hidden="true" tabindex="-1"></a>render <span class="ot">=</span> <span class="cf">function</span>(state, ns) {</span>
 <span id="cb13-2"><a href="#cb13-2" aria-hidden="true" tabindex="-1"></a>  <span class="fu">useInput</span>(<span class="st">&quot;title&quot;</span>)</span>
 <span id="cb13-3"><a href="#cb13-3" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb13-4"><a href="#cb13-4" aria-hidden="true" tabindex="-1"></a>  <span class="fu">tagList</span>(</span>
-<span id="cb13-5"><a href="#cb13-5" aria-hidden="true" tabindex="-1"></a>    <span class="fu">bindTextInput</span>(ns, <span class="st">&quot;title&quot;</span>, <span class="st">&quot;Title&quot;</span>, state<span class="sc">$</span>title, <span class="at">update =</span> <span class="st">&quot;input&quot;</span>),</span>
-<span id="cb13-6"><a href="#cb13-6" aria-hidden="true" tabindex="-1"></a>    <span class="fu">h3</span>(state<span class="sc">$</span>title),</span>
-<span id="cb13-7"><a href="#cb13-7" aria-hidden="true" tabindex="-1"></a>    <span class="fu">p</span>(<span class="st">&quot;Characters:&quot;</span>, <span class="fu">nchar</span>(state<span class="sc">$</span>title))</span>
-<span id="cb13-8"><a href="#cb13-8" aria-hidden="true" tabindex="-1"></a>  )</span>
-<span id="cb13-9"><a href="#cb13-9" aria-hidden="true" tabindex="-1"></a>}</span></code></pre></div>
-<p>Optional: use <code>preview()</code> to manually mark a dynamic
-region (rarely needed).</p>
+<span id="cb13-4"><a href="#cb13-4" aria-hidden="true" tabindex="-1"></a>  <span class="fu">fluidPage</span>(</span>
+<span id="cb13-5"><a href="#cb13-5" aria-hidden="true" tabindex="-1"></a>    <span class="fu">fluidRow</span>(</span>
+<span id="cb13-6"><a href="#cb13-6" aria-hidden="true" tabindex="-1"></a>      <span class="fu">column</span>(</span>
+<span id="cb13-7"><a href="#cb13-7" aria-hidden="true" tabindex="-1"></a>        <span class="dv">6</span>,</span>
+<span id="cb13-8"><a href="#cb13-8" aria-hidden="true" tabindex="-1"></a>        <span class="fu">bindTextInput</span>(ns, <span class="st">&quot;title&quot;</span>, <span class="st">&quot;Title&quot;</span>, state<span class="sc">$</span>title, <span class="at">update =</span> <span class="st">&quot;input&quot;</span>),</span>
+<span id="cb13-9"><a href="#cb13-9" aria-hidden="true" tabindex="-1"></a>        <span class="fu">bindTextArea</span>(ns, <span class="st">&quot;notes&quot;</span>, <span class="st">&quot;Notes&quot;</span>, state<span class="sc">$</span>notes, <span class="at">update =</span> <span class="st">&quot;input&quot;</span>)</span>
+<span id="cb13-10"><a href="#cb13-10" aria-hidden="true" tabindex="-1"></a>      ),</span>
+<span id="cb13-11"><a href="#cb13-11" aria-hidden="true" tabindex="-1"></a>      <span class="fu">column</span>(</span>
+<span id="cb13-12"><a href="#cb13-12" aria-hidden="true" tabindex="-1"></a>        <span class="dv">6</span>,</span>
+<span id="cb13-13"><a href="#cb13-13" aria-hidden="true" tabindex="-1"></a>        <span class="fu">h3</span>(<span class="st">&quot;Live preview&quot;</span>),</span>
+<span id="cb13-14"><a href="#cb13-14" aria-hidden="true" tabindex="-1"></a>        <span class="fu">p</span>(state<span class="sc">$</span>title),</span>
+<span id="cb13-15"><a href="#cb13-15" aria-hidden="true" tabindex="-1"></a>        <span class="fu">p</span>(state<span class="sc">$</span>notes)</span>
+<span id="cb13-16"><a href="#cb13-16" aria-hidden="true" tabindex="-1"></a>      )</span>
+<span id="cb13-17"><a href="#cb13-17" aria-hidden="true" tabindex="-1"></a>    )</span>
+<span id="cb13-18"><a href="#cb13-18" aria-hidden="true" tabindex="-1"></a>  )</span>
+<span id="cb13-19"><a href="#cb13-19" aria-hidden="true" tabindex="-1"></a>}</span></code></pre></div>
+<p>Use <code>update = &quot;input&quot;</code> for live preview while typing;
+<code>update = &quot;blur&quot;</code> (default) syncs on click-away.</p>
+</section>
+<section id="optional-preview" class="slide level2">
+<h2>Optional: <code>preview()</code></h2>
+<p>Use <code>preview()</code> only when you need a
+<strong>manual</strong> split inside a mixed subtree:</p>
+<div class="sourceCode" id="cb14"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb14-1"><a href="#cb14-1" aria-hidden="true" tabindex="-1"></a>render <span class="ot">=</span> <span class="cf">function</span>(state, ns) {</span>
+<span id="cb14-2"><a href="#cb14-2" aria-hidden="true" tabindex="-1"></a>  <span class="fu">useInput</span>(<span class="st">&quot;title&quot;</span>)</span>
+<span id="cb14-3"><a href="#cb14-3" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb14-4"><a href="#cb14-4" aria-hidden="true" tabindex="-1"></a>  <span class="fu">tagList</span>(</span>
+<span id="cb14-5"><a href="#cb14-5" aria-hidden="true" tabindex="-1"></a>    <span class="fu">bindTextInput</span>(ns, <span class="st">&quot;title&quot;</span>, <span class="st">&quot;Title&quot;</span>, state<span class="sc">$</span>title, <span class="at">update =</span> <span class="st">&quot;input&quot;</span>),</span>
+<span id="cb14-6"><a href="#cb14-6" aria-hidden="true" tabindex="-1"></a>    <span class="fu">preview</span>(</span>
+<span id="cb14-7"><a href="#cb14-7" aria-hidden="true" tabindex="-1"></a>      <span class="fu">h3</span>(state<span class="sc">$</span>title),</span>
+<span id="cb14-8"><a href="#cb14-8" aria-hidden="true" tabindex="-1"></a>      <span class="fu">p</span>(<span class="st">&quot;Characters:&quot;</span>, <span class="fu">nchar</span>(state<span class="sc">$</span>title))</span>
+<span id="cb14-9"><a href="#cb14-9" aria-hidden="true" tabindex="-1"></a>    )</span>
+<span id="cb14-10"><a href="#cb14-10" aria-hidden="true" tabindex="-1"></a>  )</span>
+<span id="cb14-11"><a href="#cb14-11" aria-hidden="true" tabindex="-1"></a>}</span></code></pre></div>
+<p>Most apps never need this — auto-split handles it.</p>
 </section>
 <section id="other-bound-inputs" class="slide level2">
 <h2>Other bound inputs</h2>
@@ -752,58 +789,64 @@ region (rarely needed).</p>
 </section>
 <section id="inputs-gallery-demo" class="slide level2">
 <h2>Inputs gallery demo</h2>
-<div class="sourceCode" id="cb14"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb14-1"><a href="#cb14-1" aria-hidden="true" tabindex="-1"></a>shiny<span class="sc">::</span><span class="fu">runApp</span>(</span>
-<span id="cb14-2"><a href="#cb14-2" aria-hidden="true" tabindex="-1"></a>  <span class="fu">system.file</span>(<span class="st">&quot;examples/inputs-gallery&quot;</span>, <span class="at">package =</span> <span class="st">&quot;ShinyState&quot;</span>)</span>
-<span id="cb14-3"><a href="#cb14-3" aria-hidden="true" tabindex="-1"></a>)</span></code></pre></div>
-<p>Demonstrates every bound input type with a live preview panel.</p>
+<div class="sourceCode" id="cb15"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb15-1"><a href="#cb15-1" aria-hidden="true" tabindex="-1"></a>shiny<span class="sc">::</span><span class="fu">runApp</span>(</span>
+<span id="cb15-2"><a href="#cb15-2" aria-hidden="true" tabindex="-1"></a>  <span class="fu">system.file</span>(<span class="st">&quot;examples/inputs-gallery&quot;</span>, <span class="at">package =</span> <span class="st">&quot;ShinyState&quot;</span>)</span>
+<span id="cb15-3"><a href="#cb15-3" aria-hidden="true" tabindex="-1"></a>)</span></code></pre></div>
+<p>Two-column <code>fluidPage()</code> layout:</p>
+<ul>
+<li>Left: every <code>bind*()</code> control</li>
+<li>Right: live summary table + JSON state</li>
+<li>Title and notes use <code>update = &quot;input&quot;</code>; other fields
+update on change/blur</li>
+</ul>
 </section>
 <section id="minimal-counter-app" class="slide level2">
 <h2>Minimal counter app</h2>
-<div class="sourceCode" id="cb15"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb15-1"><a href="#cb15-1" aria-hidden="true" tabindex="-1"></a>counter <span class="ot">&lt;-</span> <span class="fu">component</span>(</span>
-<span id="cb15-2"><a href="#cb15-2" aria-hidden="true" tabindex="-1"></a>  <span class="at">id =</span> <span class="st">&quot;counter&quot;</span>,</span>
-<span id="cb15-3"><a href="#cb15-3" aria-hidden="true" tabindex="-1"></a>  <span class="at">state =</span> <span class="fu">useState</span>(<span class="at">count =</span> <span class="dv">0</span><span class="dt">L</span>),</span>
-<span id="cb15-4"><a href="#cb15-4" aria-hidden="true" tabindex="-1"></a>  <span class="at">render =</span> <span class="cf">function</span>(state, ns) {</span>
-<span id="cb15-5"><a href="#cb15-5" aria-hidden="true" tabindex="-1"></a>    <span class="fu">useCallback</span>(<span class="st">&quot;inc&quot;</span>, <span class="cf">function</span>(s) s<span class="sc">$</span><span class="fu">set</span>(<span class="at">count =</span> s<span class="sc">$</span>count <span class="sc">+</span> <span class="dv">1</span><span class="dt">L</span>))</span>
-<span id="cb15-6"><a href="#cb15-6" aria-hidden="true" tabindex="-1"></a>    <span class="fu">useCallback</span>(<span class="st">&quot;dec&quot;</span>, <span class="cf">function</span>(s) s<span class="sc">$</span><span class="fu">set</span>(<span class="at">count =</span> s<span class="sc">$</span>count <span class="sc">-</span> <span class="dv">1</span><span class="dt">L</span>))</span>
-<span id="cb15-7"><a href="#cb15-7" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb15-8"><a href="#cb15-8" aria-hidden="true" tabindex="-1"></a>    <span class="fu">tagList</span>(</span>
-<span id="cb15-9"><a href="#cb15-9" aria-hidden="true" tabindex="-1"></a>      <span class="fu">h3</span>(<span class="fu">paste</span>(<span class="st">&quot;Count:&quot;</span>, state<span class="sc">$</span>count)),</span>
-<span id="cb15-10"><a href="#cb15-10" aria-hidden="true" tabindex="-1"></a>      <span class="fu">bindButton</span>(ns, <span class="st">&quot;dec&quot;</span>, <span class="st">&quot;−&quot;</span>),</span>
-<span id="cb15-11"><a href="#cb15-11" aria-hidden="true" tabindex="-1"></a>      <span class="fu">bindButton</span>(ns, <span class="st">&quot;inc&quot;</span>, <span class="st">&quot;+&quot;</span>)</span>
-<span id="cb15-12"><a href="#cb15-12" aria-hidden="true" tabindex="-1"></a>    )</span>
-<span id="cb15-13"><a href="#cb15-13" aria-hidden="true" tabindex="-1"></a>  }</span>
-<span id="cb15-14"><a href="#cb15-14" aria-hidden="true" tabindex="-1"></a>)</span></code></pre></div>
+<div class="sourceCode" id="cb16"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb16-1"><a href="#cb16-1" aria-hidden="true" tabindex="-1"></a>counter <span class="ot">&lt;-</span> <span class="fu">component</span>(</span>
+<span id="cb16-2"><a href="#cb16-2" aria-hidden="true" tabindex="-1"></a>  <span class="at">id =</span> <span class="st">&quot;counter&quot;</span>,</span>
+<span id="cb16-3"><a href="#cb16-3" aria-hidden="true" tabindex="-1"></a>  <span class="at">state =</span> <span class="fu">useState</span>(<span class="at">count =</span> <span class="dv">0</span><span class="dt">L</span>),</span>
+<span id="cb16-4"><a href="#cb16-4" aria-hidden="true" tabindex="-1"></a>  <span class="at">render =</span> <span class="cf">function</span>(state, ns) {</span>
+<span id="cb16-5"><a href="#cb16-5" aria-hidden="true" tabindex="-1"></a>    <span class="fu">useCallback</span>(<span class="st">&quot;inc&quot;</span>, <span class="cf">function</span>(s) s<span class="sc">$</span><span class="fu">set</span>(<span class="at">count =</span> s<span class="sc">$</span>count <span class="sc">+</span> <span class="dv">1</span><span class="dt">L</span>))</span>
+<span id="cb16-6"><a href="#cb16-6" aria-hidden="true" tabindex="-1"></a>    <span class="fu">useCallback</span>(<span class="st">&quot;dec&quot;</span>, <span class="cf">function</span>(s) s<span class="sc">$</span><span class="fu">set</span>(<span class="at">count =</span> s<span class="sc">$</span>count <span class="sc">-</span> <span class="dv">1</span><span class="dt">L</span>))</span>
+<span id="cb16-7"><a href="#cb16-7" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb16-8"><a href="#cb16-8" aria-hidden="true" tabindex="-1"></a>    <span class="fu">tagList</span>(</span>
+<span id="cb16-9"><a href="#cb16-9" aria-hidden="true" tabindex="-1"></a>      <span class="fu">h3</span>(<span class="fu">paste</span>(<span class="st">&quot;Count:&quot;</span>, state<span class="sc">$</span>count)),</span>
+<span id="cb16-10"><a href="#cb16-10" aria-hidden="true" tabindex="-1"></a>      <span class="fu">bindButton</span>(ns, <span class="st">&quot;dec&quot;</span>, <span class="st">&quot;−&quot;</span>),</span>
+<span id="cb16-11"><a href="#cb16-11" aria-hidden="true" tabindex="-1"></a>      <span class="fu">bindButton</span>(ns, <span class="st">&quot;inc&quot;</span>, <span class="st">&quot;+&quot;</span>)</span>
+<span id="cb16-12"><a href="#cb16-12" aria-hidden="true" tabindex="-1"></a>    )</span>
+<span id="cb16-13"><a href="#cb16-13" aria-hidden="true" tabindex="-1"></a>  }</span>
+<span id="cb16-14"><a href="#cb16-14" aria-hidden="true" tabindex="-1"></a>)</span></code></pre></div>
 </section>
 <section id="run-the-counter-example" class="slide level2">
 <h2>Run the counter example</h2>
-<div class="sourceCode" id="cb16"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb16-1"><a href="#cb16-1" aria-hidden="true" tabindex="-1"></a>shiny<span class="sc">::</span><span class="fu">runApp</span>(</span>
-<span id="cb16-2"><a href="#cb16-2" aria-hidden="true" tabindex="-1"></a>  <span class="fu">system.file</span>(<span class="st">&quot;examples/counter&quot;</span>, <span class="at">package =</span> <span class="st">&quot;ShinyState&quot;</span>)</span>
-<span id="cb16-3"><a href="#cb16-3" aria-hidden="true" tabindex="-1"></a>)</span></code></pre></div>
+<div class="sourceCode" id="cb17"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb17-1"><a href="#cb17-1" aria-hidden="true" tabindex="-1"></a>shiny<span class="sc">::</span><span class="fu">runApp</span>(</span>
+<span id="cb17-2"><a href="#cb17-2" aria-hidden="true" tabindex="-1"></a>  <span class="fu">system.file</span>(<span class="st">&quot;examples/counter&quot;</span>, <span class="at">package =</span> <span class="st">&quot;ShinyState&quot;</span>)</span>
+<span id="cb17-3"><a href="#cb17-3" aria-hidden="true" tabindex="-1"></a>)</span></code></pre></div>
 <p>Or from source before reinstalling:</p>
-<div class="sourceCode" id="cb17"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb17-1"><a href="#cb17-1" aria-hidden="true" tabindex="-1"></a>shiny<span class="sc">::</span><span class="fu">runApp</span>(<span class="st">&quot;inst/examples/counter&quot;</span>)</span></code></pre></div>
+<div class="sourceCode" id="cb18"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb18-1"><a href="#cb18-1" aria-hidden="true" tabindex="-1"></a>shiny<span class="sc">::</span><span class="fu">runApp</span>(<span class="st">&quot;inst/examples/counter&quot;</span>)</span></code></pre></div>
 </section>
 <section id="multi-page-apps" class="slide level2">
 <h2>Multi-page apps</h2>
 <p>Use Shiny tabs + one component per page:</p>
-<div class="sourceCode" id="cb18"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb18-1"><a href="#cb18-1" aria-hidden="true" tabindex="-1"></a><span class="fu">shinyApp</span>(</span>
-<span id="cb18-2"><a href="#cb18-2" aria-hidden="true" tabindex="-1"></a>  <span class="at">ui =</span> <span class="fu">navbarPage</span>(</span>
-<span id="cb18-3"><a href="#cb18-3" aria-hidden="true" tabindex="-1"></a>    <span class="st">&quot;Multipage&quot;</span>,</span>
-<span id="cb18-4"><a href="#cb18-4" aria-hidden="true" tabindex="-1"></a>    <span class="fu">tabPanel</span>(<span class="st">&quot;Dashboard&quot;</span>, <span class="fu">mount</span>(counter_component)),</span>
-<span id="cb18-5"><a href="#cb18-5" aria-hidden="true" tabindex="-1"></a>    <span class="fu">tabPanel</span>(<span class="st">&quot;Search&quot;</span>, <span class="fu">mount</span>(filter_component)),</span>
-<span id="cb18-6"><a href="#cb18-6" aria-hidden="true" tabindex="-1"></a>    <span class="fu">tabPanel</span>(<span class="st">&quot;Reducer&quot;</span>, <span class="fu">mount</span>(reducer_component))</span>
-<span id="cb18-7"><a href="#cb18-7" aria-hidden="true" tabindex="-1"></a>  ),</span>
-<span id="cb18-8"><a href="#cb18-8" aria-hidden="true" tabindex="-1"></a>  <span class="at">server =</span> <span class="cf">function</span>(input, output, session) {</span>
-<span id="cb18-9"><a href="#cb18-9" aria-hidden="true" tabindex="-1"></a>    <span class="fu">serve</span>(counter_component, input, output, session)</span>
-<span id="cb18-10"><a href="#cb18-10" aria-hidden="true" tabindex="-1"></a>    <span class="fu">serve</span>(filter_component, input, output, session)</span>
-<span id="cb18-11"><a href="#cb18-11" aria-hidden="true" tabindex="-1"></a>    <span class="fu">serve</span>(reducer_component, input, output, session)</span>
-<span id="cb18-12"><a href="#cb18-12" aria-hidden="true" tabindex="-1"></a>  }</span>
-<span id="cb18-13"><a href="#cb18-13" aria-hidden="true" tabindex="-1"></a>)</span></code></pre></div>
+<div class="sourceCode" id="cb19"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb19-1"><a href="#cb19-1" aria-hidden="true" tabindex="-1"></a><span class="fu">shinyApp</span>(</span>
+<span id="cb19-2"><a href="#cb19-2" aria-hidden="true" tabindex="-1"></a>  <span class="at">ui =</span> <span class="fu">navbarPage</span>(</span>
+<span id="cb19-3"><a href="#cb19-3" aria-hidden="true" tabindex="-1"></a>    <span class="st">&quot;Multipage&quot;</span>,</span>
+<span id="cb19-4"><a href="#cb19-4" aria-hidden="true" tabindex="-1"></a>    <span class="fu">tabPanel</span>(<span class="st">&quot;Dashboard&quot;</span>, <span class="fu">mount</span>(counter_component)),</span>
+<span id="cb19-5"><a href="#cb19-5" aria-hidden="true" tabindex="-1"></a>    <span class="fu">tabPanel</span>(<span class="st">&quot;Search&quot;</span>, <span class="fu">mount</span>(filter_component)),</span>
+<span id="cb19-6"><a href="#cb19-6" aria-hidden="true" tabindex="-1"></a>    <span class="fu">tabPanel</span>(<span class="st">&quot;Reducer&quot;</span>, <span class="fu">mount</span>(reducer_component))</span>
+<span id="cb19-7"><a href="#cb19-7" aria-hidden="true" tabindex="-1"></a>  ),</span>
+<span id="cb19-8"><a href="#cb19-8" aria-hidden="true" tabindex="-1"></a>  <span class="at">server =</span> <span class="cf">function</span>(input, output, session) {</span>
+<span id="cb19-9"><a href="#cb19-9" aria-hidden="true" tabindex="-1"></a>    <span class="fu">serve</span>(counter_component, input, output, session)</span>
+<span id="cb19-10"><a href="#cb19-10" aria-hidden="true" tabindex="-1"></a>    <span class="fu">serve</span>(filter_component, input, output, session)</span>
+<span id="cb19-11"><a href="#cb19-11" aria-hidden="true" tabindex="-1"></a>    <span class="fu">serve</span>(reducer_component, input, output, session)</span>
+<span id="cb19-12"><a href="#cb19-12" aria-hidden="true" tabindex="-1"></a>  }</span>
+<span id="cb19-13"><a href="#cb19-13" aria-hidden="true" tabindex="-1"></a>)</span></code></pre></div>
 </section>
 <section id="multipage-demo" class="slide level2">
 <h2>Multipage demo</h2>
-<div class="sourceCode" id="cb19"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb19-1"><a href="#cb19-1" aria-hidden="true" tabindex="-1"></a>shiny<span class="sc">::</span><span class="fu">runApp</span>(</span>
-<span id="cb19-2"><a href="#cb19-2" aria-hidden="true" tabindex="-1"></a>  <span class="fu">system.file</span>(<span class="st">&quot;examples/multipage&quot;</span>, <span class="at">package =</span> <span class="st">&quot;ShinyState&quot;</span>)</span>
-<span id="cb19-3"><a href="#cb19-3" aria-hidden="true" tabindex="-1"></a>)</span></code></pre></div>
+<div class="sourceCode" id="cb20"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb20-1"><a href="#cb20-1" aria-hidden="true" tabindex="-1"></a>shiny<span class="sc">::</span><span class="fu">runApp</span>(</span>
+<span id="cb20-2"><a href="#cb20-2" aria-hidden="true" tabindex="-1"></a>  <span class="fu">system.file</span>(<span class="st">&quot;examples/multipage&quot;</span>, <span class="at">package =</span> <span class="st">&quot;ShinyState&quot;</span>)</span>
+<span id="cb20-3"><a href="#cb20-3" aria-hidden="true" tabindex="-1"></a>)</span></code></pre></div>
 <p>Shows:</p>
 <ul>
 <li>Counter (<code>useState</code>, <code>effect</code>,
@@ -816,31 +859,31 @@ region (rarely needed).</p>
 <h2>Shared state across components</h2>
 <p>Components are isolated by default.</p>
 <p>For cross-page state, use a small store with subscribers:</p>
-<div class="sourceCode" id="cb20"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb20-1"><a href="#cb20-1" aria-hidden="true" tabindex="-1"></a>store <span class="ot">&lt;-</span> <span class="fu">createStore</span>(<span class="fu">list</span>(<span class="at">count =</span> <span class="dv">0</span><span class="dt">L</span>, <span class="at">history =</span> <span class="fu">character</span>()))</span>
-<span id="cb20-2"><a href="#cb20-2" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb20-3"><a href="#cb20-3" aria-hidden="true" tabindex="-1"></a>store<span class="sc">$</span><span class="fu">get</span>()</span>
-<span id="cb20-4"><a href="#cb20-4" aria-hidden="true" tabindex="-1"></a>store<span class="sc">$</span><span class="fu">set</span>(<span class="at">count =</span> <span class="dv">1</span><span class="dt">L</span>)</span>
-<span id="cb20-5"><a href="#cb20-5" aria-hidden="true" tabindex="-1"></a>store<span class="sc">$</span><span class="fu">subscribe</span>(<span class="cf">function</span>(data) { ... })</span></code></pre></div>
+<div class="sourceCode" id="cb21"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb21-1"><a href="#cb21-1" aria-hidden="true" tabindex="-1"></a>store <span class="ot">&lt;-</span> <span class="fu">createStore</span>(<span class="fu">list</span>(<span class="at">count =</span> <span class="dv">0</span><span class="dt">L</span>, <span class="at">history =</span> <span class="fu">character</span>()))</span>
+<span id="cb21-2"><a href="#cb21-2" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb21-3"><a href="#cb21-3" aria-hidden="true" tabindex="-1"></a>store<span class="sc">$</span><span class="fu">get</span>()</span>
+<span id="cb21-4"><a href="#cb21-4" aria-hidden="true" tabindex="-1"></a>store<span class="sc">$</span><span class="fu">set</span>(<span class="at">count =</span> <span class="dv">1</span><span class="dt">L</span>)</span>
+<span id="cb21-5"><a href="#cb21-5" aria-hidden="true" tabindex="-1"></a>store<span class="sc">$</span><span class="fu">subscribe</span>(<span class="cf">function</span>(data) { ... })</span></code></pre></div>
 </section>
 <section id="subscribing-in-an-effect" class="slide level2">
 <h2>Subscribing in an effect</h2>
-<div class="sourceCode" id="cb21"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb21-1"><a href="#cb21-1" aria-hidden="true" tabindex="-1"></a><span class="fu">effect</span>(</span>
-<span id="cb21-2"><a href="#cb21-2" aria-hidden="true" tabindex="-1"></a>  <span class="at">deps =</span> <span class="cn">NULL</span>,</span>
-<span id="cb21-3"><a href="#cb21-3" aria-hidden="true" tabindex="-1"></a>  <span class="cf">function</span>(state) {</span>
-<span id="cb21-4"><a href="#cb21-4" aria-hidden="true" tabindex="-1"></a>    unsubscribe <span class="ot">&lt;-</span> shared_store<span class="sc">$</span><span class="fu">subscribe</span>(<span class="cf">function</span>(data) {</span>
-<span id="cb21-5"><a href="#cb21-5" aria-hidden="true" tabindex="-1"></a>      state<span class="sc">$</span><span class="fu">set</span>(<span class="at">count =</span> data<span class="sc">$</span>count, <span class="at">history =</span> data<span class="sc">$</span>history)</span>
-<span id="cb21-6"><a href="#cb21-6" aria-hidden="true" tabindex="-1"></a>    })</span>
-<span id="cb21-7"><a href="#cb21-7" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb21-8"><a href="#cb21-8" aria-hidden="true" tabindex="-1"></a>    state<span class="sc">$</span><span class="fu">set</span>(<span class="at">count =</span> shared_store<span class="sc">$</span><span class="fu">get</span>()<span class="sc">$</span>count)</span>
-<span id="cb21-9"><a href="#cb21-9" aria-hidden="true" tabindex="-1"></a>    unsubscribe  <span class="co"># cleanup on unmount</span></span>
-<span id="cb21-10"><a href="#cb21-10" aria-hidden="true" tabindex="-1"></a>  }</span>
-<span id="cb21-11"><a href="#cb21-11" aria-hidden="true" tabindex="-1"></a>)</span></code></pre></div>
+<div class="sourceCode" id="cb22"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb22-1"><a href="#cb22-1" aria-hidden="true" tabindex="-1"></a><span class="fu">effect</span>(</span>
+<span id="cb22-2"><a href="#cb22-2" aria-hidden="true" tabindex="-1"></a>  <span class="at">deps =</span> <span class="cn">NULL</span>,</span>
+<span id="cb22-3"><a href="#cb22-3" aria-hidden="true" tabindex="-1"></a>  <span class="cf">function</span>(state) {</span>
+<span id="cb22-4"><a href="#cb22-4" aria-hidden="true" tabindex="-1"></a>    unsubscribe <span class="ot">&lt;-</span> shared_store<span class="sc">$</span><span class="fu">subscribe</span>(<span class="cf">function</span>(data) {</span>
+<span id="cb22-5"><a href="#cb22-5" aria-hidden="true" tabindex="-1"></a>      state<span class="sc">$</span><span class="fu">set</span>(<span class="at">count =</span> data<span class="sc">$</span>count, <span class="at">history =</span> data<span class="sc">$</span>history)</span>
+<span id="cb22-6"><a href="#cb22-6" aria-hidden="true" tabindex="-1"></a>    })</span>
+<span id="cb22-7"><a href="#cb22-7" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb22-8"><a href="#cb22-8" aria-hidden="true" tabindex="-1"></a>    state<span class="sc">$</span><span class="fu">set</span>(<span class="at">count =</span> shared_store<span class="sc">$</span><span class="fu">get</span>()<span class="sc">$</span>count)</span>
+<span id="cb22-9"><a href="#cb22-9" aria-hidden="true" tabindex="-1"></a>    unsubscribe  <span class="co"># cleanup on unmount</span></span>
+<span id="cb22-10"><a href="#cb22-10" aria-hidden="true" tabindex="-1"></a>  }</span>
+<span id="cb22-11"><a href="#cb22-11" aria-hidden="true" tabindex="-1"></a>)</span></code></pre></div>
 </section>
 <section id="shared-store-demo" class="slide level2">
 <h2>Shared-store demo</h2>
-<div class="sourceCode" id="cb22"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb22-1"><a href="#cb22-1" aria-hidden="true" tabindex="-1"></a>shiny<span class="sc">::</span><span class="fu">runApp</span>(</span>
-<span id="cb22-2"><a href="#cb22-2" aria-hidden="true" tabindex="-1"></a>  <span class="fu">system.file</span>(<span class="st">&quot;examples/shared-store&quot;</span>, <span class="at">package =</span> <span class="st">&quot;ShinyState&quot;</span>)</span>
-<span id="cb22-3"><a href="#cb22-3" aria-hidden="true" tabindex="-1"></a>)</span></code></pre></div>
+<div class="sourceCode" id="cb23"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb23-1"><a href="#cb23-1" aria-hidden="true" tabindex="-1"></a>shiny<span class="sc">::</span><span class="fu">runApp</span>(</span>
+<span id="cb23-2"><a href="#cb23-2" aria-hidden="true" tabindex="-1"></a>  <span class="fu">system.file</span>(<span class="st">&quot;examples/shared-store&quot;</span>, <span class="at">package =</span> <span class="st">&quot;ShinyState&quot;</span>)</span>
+<span id="cb23-3"><a href="#cb23-3" aria-hidden="true" tabindex="-1"></a>)</span></code></pre></div>
 <ul>
 <li><strong>Controls</strong> page updates global count/history</li>
 <li><strong>History</strong> page reflects changes live</li>
@@ -852,11 +895,16 @@ region (rarely needed).</p>
 <ol type="1">
 <li>Each component has a private state store</li>
 <li><code>render()</code> runs in a hook context</li>
-<li>State changes invalidate an internal counter</li>
-<li><code>renderUI()</code> rebuilds component UI</li>
-<li>Dynamic regions update separately so text inputs stay mounted</li>
+<li>State changes bump an internal version counter</li>
+<li><strong>Auto-split:</strong> typing controls and other
+<code>bind*()</code> inputs stay in the stable shell</li>
+<li>Display-only regions render in separate <code>uiOutput</code> slots
+that update live</li>
+<li>While typing, only preview slots refresh — inputs keep focus</li>
 <li>Effects run after render when deps change</li>
 </ol>
+<p>Bootstrap / Shiny CSS from <code>fluidPage()</code> is preserved
+after auto-split.</p>
 </section>
 <section id="mental-model" class="slide level2">
 <h2>Mental model</h2>
@@ -910,8 +958,10 @@ region (rarely needed).</p>
 <li>Keep one concern per component</li>
 <li>Prefer <code>bindButton()</code> and <code>bind*()</code> helpers
 inside <code>render()</code> — not raw Shiny inputs</li>
-<li>Text inputs keep focus automatically; put tables and summaries
-anywhere in <code>render()</code></li>
+<li>Put summaries, tables, and charts anywhere in <code>render()</code>
+— auto-split keeps typing controls stable</li>
+<li>Use <code>update = &quot;input&quot;</code> on text fields when you want live
+preview while typing</li>
 <li>Use <code>effect()</code> for side effects, not UI logic</li>
 <li>Use <code>useMemo()</code> for expensive derived values</li>
 <li>Mount multiple components with <code>mount()</code> /
@@ -942,9 +992,18 @@ anywhere in <code>render()</code></li>
 <code>bindButton()</code></td>
 </tr>
 <tr class="odd">
-<td>Text input loses focus after one character</td>
-<td>Reinstall v0.4.0+; use <code>bindTextInput()</code> not raw
-<code>textInput()</code></td>
+<td>Text input loses focus</td>
+<td>Use <code>bindTextInput()</code> not raw <code>textInput()</code>;
+reinstall v0.4.0+</td>
+</tr>
+<tr class="even">
+<td>Preview only updates on blur</td>
+<td>Text field uses <code>update = &quot;blur&quot;</code>; try
+<code>update = &quot;input&quot;</code></td>
+</tr>
+<tr class="odd">
+<td>Layout looks unstyled</td>
+<td>Reinstall v0.4.0+ (Bootstrap deps preserved after auto-split)</td>
 </tr>
 <tr class="even">
 <td><code>bindButton</code> / <code>preview</code> not found</td>
@@ -959,20 +1018,20 @@ anywhere in <code>render()</code></li>
 </section>
 <section id="api-cheat-sheet" class="slide level2">
 <h2>API cheat sheet</h2>
-<div class="sourceCode" id="cb23"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb23-1"><a href="#cb23-1" aria-hidden="true" tabindex="-1"></a><span class="fu">component</span>(id, ..., render)</span>
-<span id="cb23-2"><a href="#cb23-2" aria-hidden="true" tabindex="-1"></a><span class="fu">useState</span>(...)</span>
-<span id="cb23-3"><a href="#cb23-3" aria-hidden="true" tabindex="-1"></a><span class="fu">effect</span>(deps, fn)</span>
-<span id="cb23-4"><a href="#cb23-4" aria-hidden="true" tabindex="-1"></a><span class="fu">useEffect</span>(fn, deps)</span>
-<span id="cb23-5"><a href="#cb23-5" aria-hidden="true" tabindex="-1"></a><span class="fu">useMemo</span>(fn, deps)</span>
-<span id="cb23-6"><a href="#cb23-6" aria-hidden="true" tabindex="-1"></a><span class="fu">useReducer</span>(reducer, initial)</span>
-<span id="cb23-7"><a href="#cb23-7" aria-hidden="true" tabindex="-1"></a><span class="fu">useCallback</span>(input_id, fn)</span>
-<span id="cb23-8"><a href="#cb23-8" aria-hidden="true" tabindex="-1"></a><span class="fu">useInput</span>(input_id, state_field)</span>
-<span id="cb23-9"><a href="#cb23-9" aria-hidden="true" tabindex="-1"></a><span class="fu">preview</span>(...)</span>
-<span id="cb23-10"><a href="#cb23-10" aria-hidden="true" tabindex="-1"></a><span class="fu">bindButton</span>(ns, input_id, label)</span>
-<span id="cb23-11"><a href="#cb23-11" aria-hidden="true" tabindex="-1"></a><span class="fu">bindTextInput</span>(ns, input_id, label, value, <span class="at">update =</span> <span class="st">&quot;blur&quot;</span>)</span>
-<span id="cb23-12"><a href="#cb23-12" aria-hidden="true" tabindex="-1"></a><span class="fu">bindSelect</span>(ns, input_id, label, choices, selected)</span>
-<span id="cb23-13"><a href="#cb23-13" aria-hidden="true" tabindex="-1"></a><span class="fu">mount</span>(component)</span>
-<span id="cb23-14"><a href="#cb23-14" aria-hidden="true" tabindex="-1"></a><span class="fu">serve</span>(component, input, output, session)</span></code></pre></div>
+<div class="sourceCode" id="cb24"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb24-1"><a href="#cb24-1" aria-hidden="true" tabindex="-1"></a><span class="fu">component</span>(id, ..., render)</span>
+<span id="cb24-2"><a href="#cb24-2" aria-hidden="true" tabindex="-1"></a><span class="fu">useState</span>(...)</span>
+<span id="cb24-3"><a href="#cb24-3" aria-hidden="true" tabindex="-1"></a><span class="fu">effect</span>(deps, fn)</span>
+<span id="cb24-4"><a href="#cb24-4" aria-hidden="true" tabindex="-1"></a><span class="fu">useEffect</span>(fn, deps)</span>
+<span id="cb24-5"><a href="#cb24-5" aria-hidden="true" tabindex="-1"></a><span class="fu">useMemo</span>(fn, deps)</span>
+<span id="cb24-6"><a href="#cb24-6" aria-hidden="true" tabindex="-1"></a><span class="fu">useReducer</span>(reducer, initial)</span>
+<span id="cb24-7"><a href="#cb24-7" aria-hidden="true" tabindex="-1"></a><span class="fu">useCallback</span>(input_id, fn)</span>
+<span id="cb24-8"><a href="#cb24-8" aria-hidden="true" tabindex="-1"></a><span class="fu">useInput</span>(input_id, state_field)</span>
+<span id="cb24-9"><a href="#cb24-9" aria-hidden="true" tabindex="-1"></a><span class="fu">preview</span>(...)   <span class="co"># optional; auto-split is usually enough</span></span>
+<span id="cb24-10"><a href="#cb24-10" aria-hidden="true" tabindex="-1"></a><span class="fu">bindButton</span>(ns, input_id, label)</span>
+<span id="cb24-11"><a href="#cb24-11" aria-hidden="true" tabindex="-1"></a><span class="fu">bindTextInput</span>(ns, input_id, label, value, <span class="at">update =</span> <span class="st">&quot;input&quot;</span>)</span>
+<span id="cb24-12"><a href="#cb24-12" aria-hidden="true" tabindex="-1"></a><span class="fu">bindSelect</span>(ns, input_id, label, choices, selected)</span>
+<span id="cb24-13"><a href="#cb24-13" aria-hidden="true" tabindex="-1"></a><span class="fu">mount</span>(component)</span>
+<span id="cb24-14"><a href="#cb24-14" aria-hidden="true" tabindex="-1"></a><span class="fu">serve</span>(component, input, output, session)</span></code></pre></div>
 </section>
 <section id="next-steps" class="slide level2">
 <h2>Next steps</h2>
