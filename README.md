@@ -48,6 +48,18 @@ Run the bundled example:
 shiny::runApp(system.file("examples/counter", package = "ShinyState"))
 ```
 
+Multi-page example with several components:
+
+```r
+shiny::runApp(system.file("examples/multipage", package = "ShinyState"))
+```
+
+Shared-state example across pages/components:
+
+```r
+shiny::runApp(system.file("examples/shared-store", package = "ShinyState"))
+```
+
 ## API overview
 
 ### `component()`
