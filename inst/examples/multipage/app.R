@@ -23,7 +23,8 @@ counter_component <- component(
       p(paste("Doubled:", doubled)),
       bindButton(ns, "dec", "−"),
       bindButton(ns, "inc", "+"),
-      bindButton(ns, "reset", "Reset")
+      bindButton(ns, "reset", "Reset"),
+      p(route_link("search", "Go to search →"))
     )
   }
 )
@@ -102,9 +103,12 @@ shinyApp(
     tabPanel("Reducer", mount(reducer_component), value = "reducer")
   ),
   server = function(input, output, session) {
+    # routing = "hash" makes tabs bookmarkable (#!/dashboard, #!/search, ...)
+    # and wires the browser back/forward buttons to tab navigation.
     serve_dormant(
       session = session, input = input, output = output,
       navbar = "pages",
+      routing = "hash",
       dashboard = counter_component,
       search = filter_component,
       reducer = reducer_component

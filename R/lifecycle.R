@@ -11,6 +11,15 @@
 #'   `value` arguments.
 #' @param session,input,output Shiny server function arguments.
 #' @param navbar Character id of the `navbarPage()` / `tabsetPanel()`.
+#' @param routing `"hash"` to sync the active tab with a `#!/page` URL hash
+#'   via [router_server()]: pages become bookmarkable, and the browser
+#'   back/forward buttons navigate between tabs. Component names double as
+#'   page names; the first component is the fallback for unknown routes (it
+#'   should correspond to the navbar's default tab). `"none"` (default)
+#'   disables routing.
+#'
+#' @return Invisibly, the [router_server()] handle (reactives `page` and
+#'   `parts`) when `routing = "hash"`, otherwise `NULL`.
 #'
 #' @export
 #'
@@ -32,7 +41,9 @@
 #'   }
 #' )
 #' }
-serve_dormant <- function(..., session, input, output, navbar) {
+serve_dormant <- function(..., session, input, output, navbar,
+                          routing = c("none", "hash")) {
+  routing <- match.arg(routing)
   components <- list(...)
   if (length(components) == 0L) {
     rlang::abort("`serve_dormant()` requires at least one named component.")
@@ -70,6 +81,15 @@ serve_dormant <- function(..., session, input, output, navbar) {
     })
   }
 
+  route <- NULL
+  if (identical(routing, "hash")) {
+    route <- router_server(
+      session, input, navbar,
+      tabs = names(components),
+      default = names(components)[[1]]
+    )
+  }
+
   warned_tabs <- new.env(parent = emptyenv())
   shiny::observeEvent(input[[navbar]], {
     val <- input[[navbar]]
@@ -83,5 +103,5 @@ serve_dormant <- function(..., session, input, output, navbar) {
     }
   })
 
-  invisible(NULL)
+  invisible(route)
 }

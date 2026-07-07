@@ -412,6 +412,30 @@ For a single always-visible component, use [serve()] as before.
 
 ---
 
+## URL routing
+
+Add `routing = "hash"` and every page gets a bookmarkable URL (`#!/dashboard`,
+`#!/search`, ...). The browser back/forward buttons navigate between tabs:
+
+```{r}
+serve_dormant(
+  session = session, input = input, output = output,
+  navbar = "pages",
+  routing = "hash",
+  dashboard = counter_component,
+  search = filter_component
+)
+```
+
+- Component names double as page names in the URL
+- Opening `https://myapp/#!/search` starts the app on the Search tab
+- Unknown routes warn and fall back to the first component's page
+- Link between pages with `route_link("search", "Go to search")` — a plain
+  `<a href="#!/search">` anchor, no JavaScript needed
+- Plain in-page anchors (`#section`) are left alone
+
+---
+
 ## Multipage demo
 
 ```{r}
@@ -505,6 +529,7 @@ Bootstrap / Shiny CSS from `fluidPage()` is preserved after auto-split.
 | onChange handler | `useInput()` + `bindTextInput()` / `bind*()` |
 | Live output region | Automatic (or optional `preview()`) |
 | Tab lifecycle | `serve_dormant()` |
+| URL routing | `serve_dormant(routing = "hash")` + `route_link()` |
 
 ---
 
@@ -552,7 +577,9 @@ bindTextInput(ns, input_id, label, value, update = "input")
 bindSelect(ns, input_id, label, choices, selected)
 mount(component)
 serve(component, input, output, session)
-serve_dormant(session, input, output, navbar, ...)
+serve_dormant(session, input, output, navbar, routing = "hash", ...)
+router_server(session, input, navbar, tabs, default)
+route_link(page, label)
 ```
 
 ---
