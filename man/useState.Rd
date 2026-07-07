@@ -21,15 +21,16 @@ useCallback(input_id, fn)
 \arguments{
 \item{...}{Named initial values. Each name becomes a state field.}
 
-\item{fn}{Function to run. For \code{\link[=useEffect]{useEffect()}}, receives the state accessor
-(declarative components) or no arguments (hook-style). For \code{\link[=useMemo]{useMemo()}},
-should return the memoized value.}
+\item{fn}{Handler function. Receives the state accessor as the first
+argument. When wired through a \verb{bind*()} helper that sends a value, the
+event value is passed as the second argument.}
 
 \item{deps}{Character vector of state field names, or \code{NULL} to run once on
 mount. Dependency values are read from the component state store.}
 
-\item{input_id}{Callback id (without namespace). Pair with \code{\link[=bindButton]{bindButton()}} in
-the UI — do not use \code{\link[shiny:actionButton]{shiny::actionButton()}} directly inside \code{render()}.}
+\item{input_id}{Callback id (without namespace). Pair with \code{\link[=bindButton]{bindButton()}} or a
+\verb{bind*()} input helper in the UI — do not use raw Shiny inputs directly
+inside \code{render()}.}
 }
 \value{
 Outside of an active render cycle, returns a state \emph{specification} object

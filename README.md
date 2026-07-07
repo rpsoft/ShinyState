@@ -60,6 +60,12 @@ Shared-state example across pages/components:
 shiny::runApp(system.file("examples/shared-store", package = "ShinyState"))
 ```
 
+Full interactive inputs gallery (text, toggles, radios, checkboxes, selects, slider, date):
+
+```r
+shiny::runApp(system.file("examples/inputs-gallery", package = "ShinyState"))
+```
+
 ## Tutorial presentation
 
 Slide deck: `inst/tutorial/shinystate-tutorial.Rmd`
@@ -100,7 +106,9 @@ component(
 | `useMemo()` | Memoize computed values |
 | `useReducer()` | State machines via `(state, action) => new_state` |
 | `useCallback()` | Wire button clicks to state updates (use with [bindButton()]) |
+| `useInput()` | Wire bound inputs to state fields (use with `bind*()` helpers) |
 | `bindButton()` | Action button safe inside re-rendering components |
+| `bindTextInput()`, `bindSelect()`, ... | Bound Shiny inputs safe inside `render()` |
 
 ### State accessor
 

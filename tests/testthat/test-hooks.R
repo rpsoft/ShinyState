@@ -138,6 +138,28 @@ test_that("useCallback increments once per click", {
   )
 })
 
+test_that("useInput updates state from event value", {
+  counter <- component(
+    id = "inputs",
+    state = useState(title = "A"),
+    render = function(state, ns) {
+      useInput("title")
+      shiny::p(state$title)
+    }
+  )
+
+  shiny::testServer(
+    counter$server,
+    {
+      session$flushReact()
+      session$setInputs(".shinystate_event" = list(id = "title", t = 1, value = "B"))
+      session$flushReact()
+      html <- htmltools::renderTags(output$ui)$html
+      expect_match(html, ">B<")
+    }
+  )
+})
+
 test_that("component returns ui and server", {
   cmp <- component(
     id = "c",

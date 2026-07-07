@@ -125,7 +125,11 @@ componentServer <- function(id, initial_state = list(), effect_specs = list(), r
         if (is.null(handler)) {
           return()
         }
-        if (length(formals(handler)) > 0L) {
+        value <- payload$value
+        nformals <- length(formals(handler))
+        if (!is.null(value) && nformals >= 2L) {
+          handler(state_accessor, value)
+        } else if (nformals >= 1L) {
           handler(state_accessor)
         } else {
           handler()

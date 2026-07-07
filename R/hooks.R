@@ -135,8 +135,12 @@ useMemo <- function(fn, deps) {
 }
 
 #' @rdname useState
-#' @param input_id Callback id (without namespace). Pair with [bindButton()] in
-#'   the UI — do not use [shiny::actionButton()] directly inside `render()`.
+#' @param input_id Callback id (without namespace). Pair with [bindButton()] or a
+#'   `bind*()` input helper in the UI — do not use raw Shiny inputs directly
+#'   inside `render()`.
+#' @param fn Handler function. Receives the state accessor as the first
+#'   argument. When wired through a `bind*()` helper that sends a value, the
+#'   event value is passed as the second argument.
 #' @export
 useCallback <- function(input_id, fn) {
   ctx <- get_hook_context()
