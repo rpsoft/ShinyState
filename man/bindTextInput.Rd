@@ -87,7 +87,8 @@ bindDateInput(ns, input_id, label, value, min = NULL, max = NULL)
 \item{update}{When to sync state: \code{"blur"} (default) or \code{"input"} (live updates).
 With \code{update = "input"}, non-typing UI live-updates automatically while typing.}
 
-\item{debounce_ms}{Ignored (kept for backwards compatibility).}
+\item{debounce_ms}{Deprecated; ignored. Supplying a value raises a one-time
+warning.}
 
 \item{rows}{Number of rows.}
 

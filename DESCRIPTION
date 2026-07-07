@@ -1,11 +1,14 @@
 Package: ShinyState
 Title: React-Style Hooks for Shiny Applications
-Version: 0.5.0
-Authors@R: person("ShinyState", role = c("aut", "cre"), email = "shinystate@example.com")
+Version: 0.6.0
+Authors@R: person("Jesus", "Rodriguez Perez", role = c("aut", "cre"), email = "rpsoft@gmail.com")
 Description: Provides a React-inspired component and hook system for Shiny
     applications. Write UI with useState(), useEffect(), useMemo(), and
-    useReducer() instead of Shiny's reactive primitives.
-License: MIT
+    useReducer() instead of Shiny's reactive primitives. Supports multi-page
+    apps with a dormant tab lifecycle and hash-based URL routing.
+License: MIT + file LICENSE
+URL: https://github.com/rpsoft/ShinyState
+BugReports: https://github.com/rpsoft/ShinyState/issues
 Encoding: UTF-8
 Roxygen: list(markdown = TRUE)
 Imports:

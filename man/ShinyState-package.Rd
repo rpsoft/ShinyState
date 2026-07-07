@@ -5,7 +5,7 @@
 \alias{ShinyState-package}
 \title{ShinyState: React-Style Hooks for Shiny Applications}
 \description{
-Provides a React-inspired component and hook system for Shiny applications. Write UI with useState(), useEffect(), useMemo(), and useReducer() instead of Shiny's reactive primitives.
+Provides a React-inspired component and hook system for Shiny applications. Write UI with useState(), useEffect(), useMemo(), and useReducer() instead of Shiny's reactive primitives. Supports multi-page apps with a dormant tab lifecycle and hash-based URL routing.
 
 ShinyState lets you build Shiny applications using a React-inspired
 component model with hooks instead of reactive expressions.
@@ -22,12 +22,20 @@ component model with hooks instead of reactive expressions.
 }
 }
 
+\seealso{
+Useful links:
+\itemize{
+  \item \url{https://github.com/rpsoft/ShinyState}
+  \item Report bugs at \url{https://github.com/rpsoft/ShinyState/issues}
+}
+
+}
 \author{
-\strong{Maintainer}: ShinyState \email{shinystate@example.com}
+\strong{Maintainer}: Jesus Rodriguez Perez \email{rpsoft@gmail.com}
 
 Authors:
 \itemize{
-  \item ShinyState \email{shinystate@example.com}
+  \item Jesus Rodriguez Perez \email{rpsoft@gmail.com}
 }
 
 }

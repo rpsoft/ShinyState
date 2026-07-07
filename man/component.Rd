@@ -29,8 +29,6 @@ argument \code{ns} provides the namespace function.}
 \item{effect_specs}{List of effect specifications from \code{\link[=useEffect]{useEffect()}}.}
 
 \item{render_fn}{Render function.}
-
-\item{name}{Module namespace id (same as component id).}
 }
 \value{
 A list with \code{ui} and \code{server} functions suitable for
@@ -41,6 +39,14 @@ Creates a Shiny module that renders UI using a React-inspired hook model.
 State, effects, and rendering are declared declaratively; Shiny reactivity is
 handled internally so you never write \code{\link[shiny:reactive]{shiny::reactive()}} or
 \code{\link[shiny:observe]{shiny::observe()}}.
+}
+\details{
+The server function returned by \code{componentServer()} has signature
+\verb{function(input, output, session, is_active = NULL)}. \code{is_active} is an
+optional reactive expression returning \code{TRUE} while the component should be
+active; when it returns \code{FALSE} the component is dormant (no rendering,
+effects, or event handling) while its state is preserved. It is supplied
+automatically by \code{\link[=serve]{serve()}} and \code{\link[=serve_dormant]{serve_dormant()}}.
 }
 \examples{
 \dontrun{

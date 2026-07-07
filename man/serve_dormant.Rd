@@ -4,7 +4,7 @@
 \alias{serve_dormant}
 \title{Serve components with dormant lifecycle}
 \usage{
-serve_dormant(..., session, input, output, navbar)
+serve_dormant(..., session, input, output, navbar, routing = c("none", "hash"))
 }
 \arguments{
 \item{...}{Named components created with \code{\link[=component]{component()}}. Names must match tab
@@ -13,6 +13,17 @@ serve_dormant(..., session, input, output, navbar)
 \item{session, input, output}{Shiny server function arguments.}
 
 \item{navbar}{Character id of the \code{navbarPage()} / \code{tabsetPanel()}.}
+
+\item{routing}{\code{"hash"} to sync the active tab with a \verb{#!/page} URL hash
+via \code{\link[=router_server]{router_server()}}: pages become bookmarkable, and the browser
+back/forward buttons navigate between tabs. Component names double as
+page names; the first component is the fallback for unknown routes (it
+should correspond to the navbar's default tab). \code{"none"} (default)
+disables routing.}
+}
+\value{
+Invisibly, the \code{\link[=router_server]{router_server()}} handle (reactives \code{page} and
+\code{parts}) when \code{routing = "hash"}, otherwise \code{NULL}.
 }
 \description{
 Registers component servers that stay \strong{dormant} while their tab or page is
