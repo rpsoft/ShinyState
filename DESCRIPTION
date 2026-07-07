@@ -1,6 +1,6 @@
 Package: ShinyState
 Title: React-Style Hooks for Shiny Applications
-Version: 0.2.0
+Version: 0.3.1
 Authors@R: person("ShinyState", role = c("aut", "cre"), email = "shinystate@example.com")
 Description: Provides a React-inspired component and hook system for Shiny
     applications. Write UI with useState(), useEffect(), useMemo(), and

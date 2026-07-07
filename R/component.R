@@ -109,13 +109,48 @@ componentServer <- function(id, initial_state = list(), effect_specs = list(), r
     ns <- session$ns
     store <- new_state_store(initial_state)
     version <- shiny::reactiveVal(0L)
+    controls_version <- shiny::reactiveVal(0L)
+    editing_text <- shiny::reactiveVal(FALSE)
+    pending_controls <- FALSE
+    ctx_has_preview <- FALSE
+
+    refresh_controls <- function() {
+      pending_controls <<- FALSE
+      controls_version(controls_version() + 1L)
+    }
 
     schedule_rerender <- function() {
-      version(version() + 1L)
+      if (isTRUE(ctx_has_preview)) {
+        version(version() + 1L)
+        if (isTRUE(editing_text())) {
+          pending_controls <<- TRUE
+        } else {
+          controls_version(controls_version() + 1L)
+        }
+        return(invisible(NULL))
+      }
+
+      if (isTRUE(editing_text())) {
+        pending_controls <<- TRUE
+        return(invisible(NULL))
+      }
+      controls_version(controls_version() + 1L)
     }
 
     ctx <- new_hook_context(id, store, schedule_rerender, ns = ns, input = input)
-    state_accessor <- make_state_accessor(store, schedule_rerender)
+    state_accessor <- make_state_accessor(store, schedule_rerender, refresh_controls)
+
+    shiny::observeEvent(
+      input$`.shinystate_editing`,
+      {
+        editing_text(isTRUE(input$`.shinystate_editing`))
+        if (!isTRUE(input$`.shinystate_editing`) && pending_controls) {
+          refresh_controls()
+        }
+      },
+      ignoreInit = TRUE,
+      ignoreNULL = FALSE
+    )
 
     shiny::observeEvent(
       input$`.shinystate_event`,
@@ -143,6 +178,7 @@ componentServer <- function(id, initial_state = list(), effect_specs = list(), r
       reset_hook_index(ctx)
       ctx$in_render <- TRUE
       ctx$effect_specs <- list()
+      ctx$preview_fn <- NULL
 
       on.exit({
         ctx$in_render <- FALSE
@@ -164,24 +200,62 @@ componentServer <- function(id, initial_state = list(), effect_specs = list(), r
         }
       })
 
-      result
+      ctx_has_preview <<- !is.null(ctx$preview_fn)
+      if (!is.null(ctx$preview_fn)) {
+        ctx$stored_preview_fn <- ctx$preview_fn
+      }
+      list(ui = result, preview_fn = ctx$preview_fn)
+    }
+
+    render_preview <- function() {
+      preview_fn <- ctx$stored_preview_fn
+      if (!isTRUE(ctx_has_preview) || is.null(preview_fn)) {
+        return(NULL)
+      }
+
+      reset_hook_index(ctx)
+      ctx$in_render <- TRUE
+      on.exit({
+        ctx$in_render <- FALSE
+      }, add = TRUE)
+
+      with_hook_context(ctx, preview_fn())
     }
 
     output$ui <- shiny::renderUI({
-      version()
+      controls_version()
       shiny::isolate({
         tryCatch(
           {
-            result <- render_component()
+            rendered <- render_component()
             is_first <- is.null(ctx$.has_rendered)
             ctx$.has_rendered <- TRUE
             run_effects(ctx, state_accessor, is_first_run = is_first)
-            result
+            wrap_component_ui(ns, rendered$ui)
           },
           error = function(e) {
             shiny::div(
               style = "color: #b00020; padding: 1em; border: 1px solid #b00020;",
               shiny::strong("ShinyState render error: "),
+              conditionMessage(e)
+            )
+          }
+        )
+      })
+    })
+
+    output$shinystate_preview <- shiny::renderUI({
+      version()
+      shiny::isolate({
+        if (!isTRUE(ctx_has_preview)) {
+          return(NULL)
+        }
+        tryCatch(
+          render_preview(),
+          error = function(e) {
+            shiny::div(
+              style = "color: #b00020; padding: 1em; border: 1px solid #b00020;",
+              shiny::strong("ShinyState preview error: "),
               conditionMessage(e)
             )
           }

@@ -30,7 +30,8 @@ Open `shinystate-tutorial.Rmd` and click **Knit** (with `revealjs` installed).
 
 - Why ShinyState exists
 - Components and hooks (`useState`, `effect`, `useMemo`, `useReducer`, `useCallback`)
-- `bindButton()` and render safety
+- Bound inputs (`bindButton()`, `bindTextInput()`, and related helpers)
+- `preview()` for focus-safe text inputs
 - Multi-page apps with multiple components
 - Shared state across components
 - Bundled examples and troubleshooting

@@ -223,13 +223,85 @@ render = function(state, ns) {
 
 ---
 
-## Why `bindButton()`?
+## Why bound helpers?
 
 `render()` output is rebuilt when state changes.
 
-Plain `actionButton()` values reset on re-render and can fire handlers twice.
+Plain Shiny inputs and buttons reset on re-render and can fire handlers twice.
 
-`bindButton()` dispatches through a single internal event channel.
+Use **`bindButton()`**, **`bindTextInput()`**, and related `bind*()` helpers — they dispatch through a single internal event channel.
+
+---
+
+## Text inputs: `useInput()` + `bindTextInput()`
+
+```{r}
+render = function(state, ns) {
+  useInput("title")
+
+  bindTextInput(
+    ns, "title", "Title", state$title,
+    placeholder = "Enter a title",
+    update = "input"   # or "blur" (default)
+  )
+}
+```
+
+- `useInput()` registers a callback that writes event values into state
+- `bindTextInput()` renders a text field wired to that callback
+
+---
+
+## Text input focus
+
+Rebuilding the whole UI on every keystroke destroys the focused input.
+
+**Solution:** wrap live-updating output in `preview()` and keep inputs **outside** it:
+
+```{r}
+render = function(state, ns) {
+  useInput("title")
+
+  tagList(
+    bindTextInput(ns, "title", "Title", state$title, update = "input"),
+    preview(
+      h3(state$title),
+      p("Characters:", nchar(state$title))
+    )
+  )
+}
+```
+
+Controls render once; only the preview region updates while you type.
+
+---
+
+## Other bound inputs
+
+| Helper | Control |
+|--------|---------|
+| `bindTextArea()` | Multi-line text |
+| `bindNumericInput()` | Number field |
+| `bindCheckbox()` / `bindSwitch()` | Checkbox / toggle |
+| `bindRadioButtons()` | Radio group |
+| `bindCheckboxGroup()` | Multiple checkboxes |
+| `bindSelect()` | Dropdown / multi-select |
+| `bindSlider()` | Range slider |
+| `bindDateInput()` | Date picker |
+
+All pair with `useInput("field_id")` in `render()`.
+
+---
+
+## Inputs gallery demo
+
+```{r}
+shiny::runApp(
+  system.file("examples/inputs-gallery", package = "ShinyState")
+)
+```
+
+Demonstrates every bound input type with a live preview panel.
 
 ---
 
@@ -363,7 +435,8 @@ ShinyState still uses Shiny internally, but hides it:
 2. `render()` runs in a hook context
 3. State changes invalidate an internal counter
 4. `renderUI()` rebuilds component UI
-5. Effects run after render when deps change
+5. `preview()` regions update separately so text inputs stay mounted
+6. Effects run after render when deps change
 
 ---
 
@@ -377,13 +450,16 @@ ShinyState still uses Shiny internally, but hides it:
 | `useMemo` | `useMemo()` |
 | `useReducer` | `useReducer()` |
 | onClick handler | `useCallback()` + `bindButton()` |
+| onChange handler | `useInput()` + `bindTextInput()` / `bind*()` |
+| Live output region | `preview()` |
 
 ---
 
 ## Best practices
 
 - Keep one concern per component
-- Prefer `bindButton()` for actions inside `render()`
+- Prefer `bindButton()` and `bind*()` helpers inside `render()` — not raw Shiny inputs
+- Put live-updating display (tables, summaries) inside `preview()` when using text inputs
 - Use `effect()` for side effects, not UI logic
 - Use `useMemo()` for expensive derived values
 - Mount multiple components with `mount()` / `serve()`
@@ -396,7 +472,8 @@ ShinyState still uses Shiny internally, but hides it:
 |---------|----------------|
 | Blank component area | Old app process still running; restart R + app |
 | Handler fires twice | Used `actionButton()` instead of `bindButton()` |
-| `bindButton` not found | Reinstall latest package version |
+| Text input loses focus after one character | Put dynamic UI in `preview()`; keep `bindTextInput()` outside it |
+| `bindButton` / `preview` not found | Reinstall latest package version |
 | Example path is `""` | Example not in installed package yet |
 
 ---
@@ -411,7 +488,11 @@ useEffect(fn, deps)
 useMemo(fn, deps)
 useReducer(reducer, initial)
 useCallback(input_id, fn)
+useInput(input_id, state_field)
+preview(...)
 bindButton(ns, input_id, label)
+bindTextInput(ns, input_id, label, value, update = "blur")
+bindSelect(ns, input_id, label, choices, selected)
 mount(component)
 serve(component, input, output, session)
 ```
@@ -420,7 +501,7 @@ serve(component, input, output, session)
 
 ## Next steps
 
-1. Run all three bundled examples
+1. Run all four bundled examples
 2. Convert one existing module to `component()`
 3. Extract shared app state into a store pattern
 4. Build a multi-tab dashboard from small components
@@ -438,3 +519,4 @@ Examples:
 - `examples/counter`
 - `examples/multipage`
 - `examples/shared-store`
+- `examples/inputs-gallery`

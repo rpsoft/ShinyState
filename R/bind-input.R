@@ -4,13 +4,29 @@ event_channel_id <- function(ns) {
 }
 
 #' @keywords internal
-dispatch_js <- function(ns, callback_id, value_js_expr) {
-  sprintf(
-    "Shiny.setInputValue('%s',{id:'%s',t:Date.now(),value:%s},{priority:'event'});",
-    event_channel_id(ns),
-    callback_id,
-    value_js_expr
+dispatch_js <- function(ns, callback_id, value_expr, debounce_ms = NULL, mark_editing = FALSE) {
+  channel <- event_channel_id(ns)
+  send_body <- sprintf(
+    paste0(
+      "var __ss_val=%s;",
+      "Shiny.setInputValue('%s',{id:'%s',t:Date.now(),value:__ss_val},{priority:'event'});"
+    ),
+    value_expr,
+    channel,
+    callback_id
   )
+
+  if (isTRUE(mark_editing)) {
+    editing_channel <- ns(".shinystate_editing")
+    send_body <- paste0(
+      "Shiny.setInputValue('",
+      editing_channel,
+      "',true,{priority:'event'});",
+      send_body
+    )
+  }
+
+  sprintf("(function(el){%s})(this);", send_body)
 }
 
 #' @keywords internal
@@ -56,8 +72,15 @@ useInput <- function(input_id, state_field = input_id, transform = NULL) {
 #' @param placeholder Optional placeholder text.
 #' @param width Optional CSS width (e.g. `"100%"`).
 #'
+#' @param update When to sync state: `"blur"` (default) or `"input"` (live updates).
+#'   Pair live text updates with \code{\link{preview}} so controls are not rebuilt while typing.
+#' @param debounce_ms Ignored (kept for backwards compatibility).
+#' @rdname bindTextInput
 #' @export
-bindTextInput <- function(ns, input_id, label, value, placeholder = NULL, width = NULL) {
+bindTextInput <- function(ns, input_id, label, value, placeholder = NULL, width = NULL, update = c("blur", "input"), debounce_ms = NULL) {
+  update <- match.arg(update)
+  event_js <- dispatch_js(ns, input_id, "el.value", mark_editing = update == "input")
+
   shiny::div(
     class = "form-group shiny-input-container",
     shiny::tags$label(label, `for` = ns(input_id)),
@@ -68,16 +91,19 @@ bindTextInput <- function(ns, input_id, label, value, placeholder = NULL, width 
       value = value %||% "",
       placeholder = placeholder,
       style = if (!is.null(width)) paste0("width:", width, ";") else NULL,
-      oninput = dispatch_js(ns, input_id, "this.value")
+      `onblur` = if (update == "blur") event_js else NULL,
+      `oninput` = if (update == "input") event_js else NULL
     )
   )
 }
 
-#' Bound text area
 #' @rdname bindTextInput
 #' @param rows Number of rows.
 #' @export
-bindTextArea <- function(ns, input_id, label, value, rows = 3L, placeholder = NULL, width = NULL) {
+bindTextArea <- function(ns, input_id, label, value, rows = 3L, placeholder = NULL, width = NULL, update = c("blur", "input"), debounce_ms = NULL) {
+  update <- match.arg(update)
+  event_js <- dispatch_js(ns, input_id, "el.value", mark_editing = update == "input")
+
   shiny::div(
     class = "form-group shiny-input-container",
     shiny::tags$label(label, `for` = ns(input_id)),
@@ -87,7 +113,8 @@ bindTextArea <- function(ns, input_id, label, value, rows = 3L, placeholder = NU
       rows = rows,
       placeholder = placeholder,
       style = if (!is.null(width)) paste0("width:", width, ";") else NULL,
-      oninput = dispatch_js(ns, input_id, "this.value"),
+      `onblur` = if (update == "blur") event_js else NULL,
+      `oninput` = if (update == "input") event_js else NULL,
       value
     )
   )
@@ -96,7 +123,10 @@ bindTextArea <- function(ns, input_id, label, value, rows = 3L, placeholder = NU
 #' Bound numeric input
 #' @rdname bindTextInput
 #' @export
-bindNumericInput <- function(ns, input_id, label, value, min = NA, max = NA, step = NA, width = NULL) {
+bindNumericInput <- function(ns, input_id, label, value, min = NA, max = NA, step = NA, width = NULL, update = c("blur", "input"), debounce_ms = NULL) {
+  update <- match.arg(update)
+  event_js <- dispatch_js(ns, input_id, "parseFloat(el.value)", mark_editing = update == "input")
+
   shiny::div(
     class = "form-group shiny-input-container",
     shiny::tags$label(label, `for` = ns(input_id)),
@@ -109,7 +139,8 @@ bindNumericInput <- function(ns, input_id, label, value, min = NA, max = NA, ste
       max = if (!is.na(max)) max else NULL,
       step = if (!is.na(step)) step else NULL,
       style = if (!is.null(width)) paste0("width:", width, ";") else NULL,
-      oninput = dispatch_js(ns, input_id, "parseFloat(this.value)")
+      `onblur` = if (update == "blur") event_js else NULL,
+      `oninput` = if (update == "input") event_js else NULL
     )
   )
 }
@@ -125,7 +156,7 @@ bindCheckbox <- function(ns, input_id, label, value = FALSE) {
         type = "checkbox",
         id = ns(input_id),
         checked = if (isTRUE(value)) NA else NULL,
-        onclick = dispatch_js(ns, input_id, "this.checked")
+        onclick = dispatch_js(ns, input_id, "el.checked")
       ),
       " ",
       label
@@ -147,7 +178,7 @@ bindSwitch <- function(ns, input_id, label, value = FALSE) {
         role = "switch",
         id = ns(input_id),
         checked = if (isTRUE(value)) NA else NULL,
-        onclick = dispatch_js(ns, input_id, "this.checked")
+        onclick = dispatch_js(ns, input_id, "el.checked")
       )
     )
   )
@@ -175,7 +206,7 @@ bindRadioButtons <- function(ns, input_id, label, choices, selected, inline = FA
             name = ns(input_id),
             value = choice_value,
             checked = if (identical(as.character(selected), choice_value)) NA else NULL,
-            onclick = dispatch_js(ns, input_id, "this.value")
+            onclick = dispatch_js(ns, input_id, "el.value")
           ),
           " ",
           choice_label
@@ -245,7 +276,7 @@ bindSelect <- function(ns, input_id, label, choices, selected, multiple = FALSE,
             ns(input_id)
           )
         } else {
-          "this.value"
+          "el.value"
         }
       ),
       lapply(names(choices), function(choice_label) {
@@ -275,7 +306,7 @@ bindSlider <- function(ns, input_id, label, min, max, value, step = 1) {
       max = max,
       step = step,
       value = value,
-      oninput = dispatch_js(ns, input_id, "parseFloat(this.value)")
+      `onchange` = dispatch_js(ns, input_id, "parseFloat(el.value)")
     ),
     shiny::tags$p(class = "help-block", paste("Value:", value))
   )
@@ -309,7 +340,7 @@ bindDateInput <- function(ns, input_id, label, value, min = NULL, max = NULL) {
       value = format(current, "%Y-%m-%d"),
       min = if (!is.null(min_date)) format(min_date, "%Y-%m-%d") else NULL,
       max = if (!is.null(max_date)) format(max_date, "%Y-%m-%d") else NULL,
-      onchange = dispatch_js(ns, input_id, "this.value")
+      onchange = dispatch_js(ns, input_id, "el.value")
     )
   )
 }

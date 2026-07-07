@@ -13,7 +13,16 @@
 \alias{bindDateInput}
 \title{Bound text input}
 \usage{
-bindTextInput(ns, input_id, label, value, placeholder = NULL, width = NULL)
+bindTextInput(
+  ns,
+  input_id,
+  label,
+  value,
+  placeholder = NULL,
+  width = NULL,
+  update = c("blur", "input"),
+  debounce_ms = NULL
+)
 
 bindTextArea(
   ns,
@@ -22,7 +31,9 @@ bindTextArea(
   value,
   rows = 3L,
   placeholder = NULL,
-  width = NULL
+  width = NULL,
+  update = c("blur", "input"),
+  debounce_ms = NULL
 )
 
 bindNumericInput(
@@ -33,7 +44,9 @@ bindNumericInput(
   min = NA,
   max = NA,
   step = NA,
-  width = NULL
+  width = NULL,
+  update = c("blur", "input"),
+  debounce_ms = NULL
 )
 
 bindCheckbox(ns, input_id, label, value = FALSE)
@@ -71,6 +84,11 @@ bindDateInput(ns, input_id, label, value, min = NULL, max = NULL)
 
 \item{width}{Optional CSS width (e.g. \code{"100\%"}).}
 
+\item{update}{When to sync state: \code{"blur"} (default) or \code{"input"} (live updates).
+Pair live text updates with \code{\link{preview}} so controls are not rebuilt while typing.}
+
+\item{debounce_ms}{Ignored (kept for backwards compatibility).}
+
 \item{rows}{Number of rows.}
 
 \item{choices}{Named vector of choices.}
@@ -83,8 +101,6 @@ bindDateInput(ns, input_id, label, value, min = NULL, max = NULL)
 }
 \description{
 Bound text input
-
-Bound text area
 
 Bound numeric input
 
