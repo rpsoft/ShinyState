@@ -1,0 +1,19 @@
+# R session artifacts
+.Rhistory
+.RData
+.Ruserdata
+.Rproj.user/
+
+# Build artifacts
+*.Rcheck/
+*.tar.gz
+*.o
+*.so
+*.dll
+*.dylib
+
+# Generated tutorial output (regenerate with rmarkdown::render())
+inst/tutorial/*.html
+
+# OS
+.DS_Store

@@ -9,3 +9,7 @@
 ^doc$
 ^Meta$
 ^\.Rcheck$
+^\.gitignore$
+^\.github$
+^inst/tutorial/shinystate-tutorial\.html$
+^LICENSE\.md$
