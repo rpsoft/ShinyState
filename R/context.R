@@ -9,6 +9,7 @@ new_hook_context <- function(component_id, state_store, schedule_rerender, ns = 
   env$ns <- ns
   env$input <- input
   env$hook_index <- 0L
+  env$hook_effect_index <- 0L
   env$memo_cache <- list()
   env$effect_specs <- list()
   env$callback_handlers <- list()
@@ -38,4 +39,5 @@ next_hook_slot <- function(ctx) {
 #' @keywords internal
 reset_hook_index <- function(ctx) {
   ctx$hook_index <- 0L
+  ctx$hook_effect_index <- 0L
 }

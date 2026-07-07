@@ -84,6 +84,54 @@ test_that("dormant transition runs effect cleanup", {
   )
 })
 
+test_that("serve_dormant warns once per unknown tab value", {
+  cmp <- component(
+    id = "counter",
+    state = useState(n = 0L),
+    render = function(state, ns) {
+      shiny::p(state$n)
+    }
+  )
+
+  shiny::testServer(
+    function(input, output, session) {
+      serve_dormant(
+        session = session, input = input, output = output,
+        navbar = "pages",
+        dashboard = cmp
+      )
+    },
+    {
+      expect_warning(
+        {
+          session$setInputs(pages = "bogus")
+          session$flushReact()
+        },
+        "no matching component"
+      )
+      expect_no_warning({
+        session$setInputs(pages = "dashboard")
+        session$flushReact()
+      })
+      expect_no_warning({
+        session$setInputs(pages = "bogus")
+        session$flushReact()
+      })
+    }
+  )
+})
+
+test_that("serve_dormant rejects arguments that are not components", {
+  expect_error(
+    serve_dormant(
+      session = NULL, input = NULL, output = NULL,
+      navbar = "pages",
+      dashboard = list(id = "x")
+    ),
+    "not a component"
+  )
+})
+
 test_that("serve_dormant wakes only active tab component", {
   counter_calls <- 0L
   other_calls <- 0L

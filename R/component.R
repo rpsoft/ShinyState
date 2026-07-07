@@ -74,18 +74,20 @@ component <- function(id, ..., render) {
     list()
   }
 
-  list(
-    id = id,
-    initial_state = initial_state,
-    effect_specs = effect_specs,
-    render_fn = render,
-    ui = componentUI(id),
-    server = componentServer(id, initial_state, effect_specs, render)
+  structure(
+    list(
+      id = id,
+      initial_state = initial_state,
+      effect_specs = effect_specs,
+      render_fn = render,
+      ui = componentUI(id),
+      server = componentServer(id, initial_state, effect_specs, render)
+    ),
+    class = c("shinystate_component", "list")
   )
 }
 
 #' @rdname component
-#' @param name Module namespace id (same as component id).
 #' @export
 componentUI <- function(id) {
   ns <- shiny::NS(id)
@@ -98,6 +100,14 @@ componentUI <- function(id) {
 #' @param initial_state Named list of initial state values.
 #' @param effect_specs List of effect specifications from [useEffect()].
 #' @param render_fn Render function.
+#'
+#' @details
+#' The server function returned by `componentServer()` has signature
+#' `function(input, output, session, is_active = NULL)`. `is_active` is an
+#' optional reactive expression returning `TRUE` while the component should be
+#' active; when it returns `FALSE` the component is dormant (no rendering,
+#' effects, or event handling) while its state is preserved. It is supplied
+#' automatically by [serve()] and [serve_dormant()].
 #' @export
 componentServer <- function(id, initial_state = list(), effect_specs = list(), render_fn) {
   force(id)
@@ -231,9 +241,9 @@ componentServer <- function(id, initial_state = list(), effect_specs = list(), r
         ctx$in_render <- FALSE
       }, add = TRUE)
 
-      for (spec in effect_specs) {
-        idx <- length(ctx$effect_specs) + 1L
-        ctx$effect_specs[[idx]] <- list(fn = spec$fn, deps = spec$deps)
+      for (i in seq_along(effect_specs)) {
+        spec <- effect_specs[[i]]
+        ctx$effect_specs[[paste0("decl_", i)]] <- list(fn = spec$fn, deps = spec$deps)
       }
 
       nformals <- length(formals(render_fn))
@@ -250,6 +260,38 @@ componentServer <- function(id, initial_state = list(), effect_specs = list(), r
 
     live_slot_cache <- list(key = NULL, slots = NULL)
 
+    registered_slots <- character(0)
+
+    ensure_slot_outputs <- function(slot_ids) {
+      for (slot_id in setdiff(slot_ids, registered_slots)) {
+        local({
+          sid <- slot_id
+          output[[sid]] <- shiny::renderUI({
+            version()
+            if (isTRUE(ctx$dormant)) {
+              return(NULL)
+            }
+            shiny::isolate({
+              if (!identical(ctx$preview_mode, "auto")) {
+                return(NULL)
+              }
+              tryCatch(
+                render_live_slot(sid),
+                error = function(e) {
+                  shiny::div(
+                    style = "color: #b00020; padding: 1em; border: 1px solid #b00020;",
+                    shiny::strong("ShinyState preview error: "),
+                    conditionMessage(e)
+                  )
+                }
+              )
+            })
+          })
+        })
+        registered_slots <<- c(registered_slots, slot_id)
+      }
+    }
+
     get_live_slots <- function() {
       cache_key <- paste0(controls_version(), ":", version())
       if (!identical(live_slot_cache$key, cache_key)) {
@@ -260,6 +302,7 @@ componentServer <- function(id, initial_state = list(), effect_specs = list(), r
           list()
         }
         live_slot_cache$key <<- cache_key
+        ensure_slot_outputs(names(live_slot_cache$slots))
       }
       live_slot_cache$slots
     }
@@ -289,6 +332,7 @@ componentServer <- function(id, initial_state = list(), effect_specs = list(), r
         if (length(partitioned$slots) > 0L) {
           ctx$preview_mode <<- "auto"
           ctx_has_preview <<- TRUE
+          ensure_slot_outputs(names(partitioned$slots))
           return(list(ui = partitioned$ui, preview_fn = NULL))
         }
       }
@@ -363,32 +407,6 @@ componentServer <- function(id, initial_state = list(), effect_specs = list(), r
       })
     })
 
-    for (i in seq_len(max_auto_preview_slots)) {
-      local({
-        slot_id <- auto_preview_slot_id(i)
-        output[[slot_id]] <- shiny::renderUI({
-          version()
-          if (isTRUE(ctx$dormant)) {
-            return(NULL)
-          }
-          shiny::isolate({
-            if (!identical(ctx$preview_mode, "auto")) {
-              return(NULL)
-            }
-            tryCatch(
-              render_live_slot(slot_id),
-              error = function(e) {
-                shiny::div(
-                  style = "color: #b00020; padding: 1em; border: 1px solid #b00020;",
-                  shiny::strong("ShinyState preview error: "),
-                  conditionMessage(e)
-                )
-              }
-            )
-          })
-        })
-      })
-    }
   }
 }
 

@@ -45,6 +45,15 @@ serve_dormant <- function(..., session, input, output, navbar) {
   if (missing(navbar) || !is.character(navbar) || length(navbar) != 1L || !nzchar(navbar)) {
     rlang::abort("`serve_dormant()` requires a single `navbar` id string.")
   }
+  for (nm in names(components)) {
+    cmp <- components[[nm]]
+    if (!is.list(cmp) || !is.function(cmp$server)) {
+      rlang::abort(sprintf(
+        "`serve_dormant()` argument '%s' is not a component; create it with `component()`.",
+        nm
+      ))
+    }
+  }
 
   current_tab <- shiny::reactive({
     input[[navbar]]
@@ -60,6 +69,19 @@ serve_dormant <- function(..., session, input, output, navbar) {
       serve(cmp, input, output, session, is_active = active)
     })
   }
+
+  warned_tabs <- new.env(parent = emptyenv())
+  shiny::observeEvent(input[[navbar]], {
+    val <- input[[navbar]]
+    if (is.character(val) && length(val) == 1L && !val %in% names(components) &&
+        !exists(val, envir = warned_tabs, inherits = FALSE)) {
+      assign(val, TRUE, envir = warned_tabs)
+      rlang::warn(sprintf(
+        "serve_dormant(): tab '%s' on navbar '%s' has no matching component (known: %s).",
+        val, navbar, paste(names(components), collapse = ", ")
+      ))
+    }
+  })
 
   invisible(NULL)
 }

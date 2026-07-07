@@ -160,6 +160,108 @@ test_that("useInput updates state from event value", {
   )
 })
 
+test_that("hook-style useState seeds state at any hook slot", {
+  cmp <- component(
+    id = "hooky",
+    render = function(state, ns) {
+      useMemo(function() 1L, deps = character(0))
+      s <- useState(count = 42L)
+      shiny::p(paste("Count:", s$count))
+    }
+  )
+
+  shiny::testServer(
+    cmp$server,
+    {
+      session$flushReact()
+      html <- htmltools::renderTags(output$ui)$html
+      expect_match(html, "Count: 42")
+    }
+  )
+})
+
+test_that("multiple useState calls seed missing fields without overwriting", {
+  store <- new_state_store(list())
+  ctx <- new_hook_context("test", store, function() NULL)
+  ctx$in_render <- TRUE
+
+  with_hook_context(ctx, {
+    reset_hook_index(ctx)
+    s1 <- useState(a = 1L)
+    s1$set(a = 5L)
+    s2 <- useState(a = 99L, b = 2L)
+    expect_equal(s2$a, 5L)
+    expect_equal(s2$b, 2L)
+  })
+})
+
+test_that("declarative effects and hook useEffect do not collide", {
+  decl_runs <- 0L
+  hook_runs <- 0L
+
+  cmp <- component(
+    id = "fx",
+    state = useState(count = 0L),
+    effect(
+      deps = "count",
+      function(state) {
+        decl_runs <<- decl_runs + 1L
+      }
+    ),
+    render = function(state, ns) {
+      useEffect(function() {
+        hook_runs <<- hook_runs + 1L
+      }, deps = "count")
+      useCallback("inc", function(s) s$set(count = s$count + 1L))
+      shiny::p(state$count)
+    }
+  )
+
+  shiny::testServer(
+    cmp$server,
+    {
+      session$flushReact()
+      expect_equal(decl_runs, 1L)
+      expect_equal(hook_runs, 1L)
+
+      session$setInputs(".shinystate_event" = list(id = "inc", t = 1))
+      session$flushReact()
+      expect_equal(decl_runs, 2L)
+      expect_equal(hook_runs, 2L)
+    }
+  )
+})
+
+test_that("useReducer preserves NULL state without re-initializing", {
+  store <- new_state_store(list())
+  ctx <- new_hook_context("test", store, function() NULL)
+  ctx$in_render <- TRUE
+
+  reducer <- function(state, action) {
+    if (action == "clear") NULL else action
+  }
+
+  r1 <- with_hook_context(ctx, {
+    reset_hook_index(ctx)
+    useReducer(reducer, "start")
+  })
+  expect_equal(r1$state, "start")
+  r1$dispatch("clear")
+
+  r2 <- with_hook_context(ctx, {
+    reset_hook_index(ctx)
+    useReducer(reducer, "start")
+  })
+  expect_null(r2$state)
+  r2$dispatch("hello")
+
+  r3 <- with_hook_context(ctx, {
+    reset_hook_index(ctx)
+    useReducer(reducer, "start")
+  })
+  expect_equal(r3$state, "hello")
+})
+
 test_that("component returns ui and server", {
   cmp <- component(
     id = "c",

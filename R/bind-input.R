@@ -30,6 +30,17 @@ dispatch_js <- function(ns, callback_id, value_expr, debounce_ms = NULL, mark_ed
 }
 
 #' @keywords internal
+warn_debounce_deprecated <- function(debounce_ms) {
+  if (!is.null(debounce_ms)) {
+    rlang::warn(
+      "`debounce_ms` is deprecated and ignored; state syncs on blur or input depending on `update`.",
+      .frequency = "once",
+      .frequency_id = "shinystate_debounce_ms"
+    )
+  }
+}
+
+#' @keywords internal
 normalize_choices <- function(choices) {
   if (is.null(names(choices))) {
     stats::setNames(as.character(choices), as.character(choices))
@@ -74,10 +85,12 @@ useInput <- function(input_id, state_field = input_id, transform = NULL) {
 #'
 #' @param update When to sync state: `"blur"` (default) or `"input"` (live updates).
 #'   With `update = "input"`, non-typing UI live-updates automatically while typing.
-#' @param debounce_ms Ignored (kept for backwards compatibility).
+#' @param debounce_ms Deprecated; ignored. Supplying a value raises a one-time
+#'   warning.
 #' @rdname bindTextInput
 #' @export
 bindTextInput <- function(ns, input_id, label, value, placeholder = NULL, width = NULL, update = c("blur", "input"), debounce_ms = NULL) {
+  warn_debounce_deprecated(debounce_ms)
   update <- match.arg(update)
   event_js <- dispatch_js(ns, input_id, "el.value", mark_editing = update == "input")
 
@@ -101,6 +114,7 @@ bindTextInput <- function(ns, input_id, label, value, placeholder = NULL, width 
 #' @param rows Number of rows.
 #' @export
 bindTextArea <- function(ns, input_id, label, value, rows = 3L, placeholder = NULL, width = NULL, update = c("blur", "input"), debounce_ms = NULL) {
+  warn_debounce_deprecated(debounce_ms)
   update <- match.arg(update)
   event_js <- dispatch_js(ns, input_id, "el.value", mark_editing = update == "input")
 
@@ -124,6 +138,7 @@ bindTextArea <- function(ns, input_id, label, value, rows = 3L, placeholder = NU
 #' @rdname bindTextInput
 #' @export
 bindNumericInput <- function(ns, input_id, label, value, min = NA, max = NA, step = NA, width = NULL, update = c("blur", "input"), debounce_ms = NULL) {
+  warn_debounce_deprecated(debounce_ms)
   update <- match.arg(update)
   event_js <- dispatch_js(ns, input_id, "parseFloat(el.value)", mark_editing = update == "input")
 
@@ -306,9 +321,17 @@ bindSlider <- function(ns, input_id, label, min, max, value, step = 1) {
       max = max,
       step = step,
       value = value,
-      `onchange` = dispatch_js(ns, input_id, "parseFloat(el.value)")
+      `onchange` = dispatch_js(ns, input_id, "parseFloat(el.value)"),
+      `oninput` = paste0(
+        "var v=this.parentElement.querySelector('.shinystate-slider-value');",
+        "if(v){v.textContent=this.value;}"
+      )
     ),
-    shiny::tags$p(class = "help-block", paste("Value:", value))
+    shiny::tags$p(
+      class = "help-block",
+      "Value: ",
+      shiny::tags$span(class = "shinystate-slider-value", value)
+    )
   )
 }
 

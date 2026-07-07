@@ -2,9 +2,6 @@
 typing_control_class <- "shinystate-typing-control"
 
 #' @keywords internal
-max_auto_preview_slots <- 10L
-
-#' @keywords internal
 is_typing_control <- function(x) {
   if (!inherits(x, "shiny.tag")) {
     return(FALSE)

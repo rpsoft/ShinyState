@@ -49,26 +49,15 @@ test_that("inputs gallery example sources without error", {
   expect_no_error(source(path, local = TRUE))
 })
 
-test_that("bindTextInput accepts debounce_ms and renders", {
-  cmp <- component(
-    id = "form",
-    state = useState(title = "Hello"),
-    render = function(state, ns) {
-      useInput("title")
-      bindTextInput(ns, "title", "Title", state$title, update = "input", debounce_ms = 200)
-    }
+test_that("bindTextInput warns once that debounce_ms is deprecated but still renders", {
+  ns <- shiny::NS("form")
+  expect_warning(
+    tag <- bindTextInput(ns, "title", "Title", "Hello", update = "input", debounce_ms = 200),
+    "deprecated"
   )
-
-  shiny::testServer(
-    cmp$server,
-    {
-      session$flushReact()
-      html <- htmltools::renderTags(output$ui)$html
-      expect_match(html, "mock-session-title")
-      expect_match(html, "shinystate_editing")
-      expect_false(grepl("render error", html, ignore.case = TRUE))
-    }
-  )
+  html <- as.character(tag)
+  expect_match(html, "form-title")
+  expect_match(html, "shinystate_editing")
 })
 
 test_that("text input updates on blur without double increment", {

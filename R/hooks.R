@@ -39,11 +39,12 @@ useState <- function(...) {
 
 #' @keywords internal
 use_state_hook <- function(initial, ctx) {
-  slot <- next_hook_slot(ctx)
+  next_hook_slot(ctx)
   store <- ctx$state_store
 
-  if (slot == 1L && length(ls(envir = store, all.names = TRUE)) == 0L) {
-    do.call(state_set, c(list(store = store), initial))
+  missing_fields <- setdiff(names(initial), ls(envir = store, all.names = TRUE))
+  if (length(missing_fields) > 0L) {
+    do.call(state_set, c(list(store = store), initial[missing_fields]))
   }
 
   make_state_accessor(store, ctx$schedule_rerender)
@@ -64,7 +65,7 @@ useReducer <- function(reducer, initial) {
     ctx$reducer_slots <- list()
   }
 
-  if (is.null(ctx$reducer_slots[[key]])) {
+  if (!key %in% names(ctx$reducer_slots)) {
     ctx$reducer_slots[[key]] <- list(
       reducer = reducer,
       state = initial
@@ -73,7 +74,7 @@ useReducer <- function(reducer, initial) {
 
   dispatch <- function(action) {
     slot_state <- ctx$reducer_slots[[key]]
-    slot_state$state <- slot_state$reducer(slot_state$state, action)
+    slot_state["state"] <- list(slot_state$reducer(slot_state$state, action))
     ctx$reducer_slots[[key]] <- slot_state
     ctx$schedule_rerender()
     invisible(slot_state$state)
@@ -97,8 +98,11 @@ useEffect <- function(fn, deps = NULL) {
   ctx <- get_hook_context()
 
   if (!is.null(ctx) && isTRUE(ctx$in_render)) {
-    slot <- next_hook_slot(ctx)
-    ctx$effect_specs[[slot]] <- list(fn = fn, deps = deps)
+    if (is.null(ctx$hook_effect_index)) {
+      ctx$hook_effect_index <- 0L
+    }
+    ctx$hook_effect_index <- ctx$hook_effect_index + 1L
+    ctx$effect_specs[[paste0("hook_", ctx$hook_effect_index)]] <- list(fn = fn, deps = deps)
     return(invisible(NULL))
   }
 
@@ -205,6 +209,17 @@ run_effects <- function(ctx, state_accessor, is_first_run = FALSE) {
     return(invisible(NULL))
   }
 
+  keys <- names(specs)
+  if (is.null(keys) || any(keys == "")) {
+    fallback <- paste0("pos_", seq_along(specs))
+    if (is.null(keys)) {
+      keys <- fallback
+    } else {
+      keys[keys == ""] <- fallback[keys == ""]
+    }
+    names(specs) <- keys
+  }
+
   if (is.null(ctx$prev_effect_deps)) {
     ctx$prev_effect_deps <- list()
   }
@@ -212,14 +227,10 @@ run_effects <- function(ctx, state_accessor, is_first_run = FALSE) {
     ctx$effect_cleanup <- list()
   }
 
-  for (i in seq_along(specs)) {
-    spec <- specs[[i]]
+  for (key in keys) {
+    spec <- specs[[key]]
     current_deps <- resolve_dep_values(ctx$state_store, spec$deps)
-    prev_deps <- if (length(ctx$prev_effect_deps) >= i) {
-      ctx$prev_effect_deps[[i]]
-    } else {
-      NULL
-    }
+    prev_deps <- ctx$prev_effect_deps[[key]]
 
     should_run <- if (is_first_run) {
       TRUE
@@ -233,15 +244,10 @@ run_effects <- function(ctx, state_accessor, is_first_run = FALSE) {
       next
     }
 
-    cleanup <- if (length(ctx$effect_cleanup) >= i) {
-      ctx$effect_cleanup[[i]]
-    } else {
-      NULL
-    }
-
+    cleanup <- ctx$effect_cleanup[[key]]
     if (!is.null(cleanup)) {
       tryCatch(cleanup(), error = function(e) NULL)
-      ctx$effect_cleanup[[i]] <- NULL
+      ctx$effect_cleanup[[key]] <- NULL
     }
 
     result <- if (length(formals(spec$fn)) > 0L) {
@@ -251,10 +257,10 @@ run_effects <- function(ctx, state_accessor, is_first_run = FALSE) {
     }
 
     if (is.function(result)) {
-      ctx$effect_cleanup[[i]] <- result
+      ctx$effect_cleanup[[key]] <- result
     }
 
-    ctx$prev_effect_deps[[i]] <- current_deps
+    ctx$prev_effect_deps[[key]] <- current_deps
   }
 
   invisible(NULL)
