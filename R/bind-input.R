@@ -73,7 +73,7 @@ useInput <- function(input_id, state_field = input_id, transform = NULL) {
 #' @param width Optional CSS width (e.g. `"100%"`).
 #'
 #' @param update When to sync state: `"blur"` (default) or `"input"` (live updates).
-#'   Pair live text updates with \code{\link{preview}} so controls are not rebuilt while typing.
+#'   With `update = "input"`, non-typing UI live-updates automatically while typing.
 #' @param debounce_ms Ignored (kept for backwards compatibility).
 #' @rdname bindTextInput
 #' @export
@@ -82,7 +82,7 @@ bindTextInput <- function(ns, input_id, label, value, placeholder = NULL, width 
   event_js <- dispatch_js(ns, input_id, "el.value", mark_editing = update == "input")
 
   shiny::div(
-    class = "form-group shiny-input-container",
+    class = "form-group shiny-input-container shinystate-typing-control",
     shiny::tags$label(label, `for` = ns(input_id)),
     shiny::tags$input(
       id = ns(input_id),
@@ -105,7 +105,7 @@ bindTextArea <- function(ns, input_id, label, value, rows = 3L, placeholder = NU
   event_js <- dispatch_js(ns, input_id, "el.value", mark_editing = update == "input")
 
   shiny::div(
-    class = "form-group shiny-input-container",
+    class = "form-group shiny-input-container shinystate-typing-control",
     shiny::tags$label(label, `for` = ns(input_id)),
     shiny::tags$textarea(
       id = ns(input_id),
@@ -128,7 +128,7 @@ bindNumericInput <- function(ns, input_id, label, value, min = NA, max = NA, ste
   event_js <- dispatch_js(ns, input_id, "parseFloat(el.value)", mark_editing = update == "input")
 
   shiny::div(
-    class = "form-group shiny-input-container",
+    class = "form-group shiny-input-container shinystate-typing-control",
     shiny::tags$label(label, `for` = ns(input_id)),
     shiny::tags$input(
       id = ns(input_id),

@@ -254,9 +254,9 @@ render = function(state, ns) {
 
 ## Text input focus
 
-Rebuilding the whole UI on every keystroke destroys the focused input.
+Rebuilding text inputs on every keystroke destroys focus.
 
-**Solution:** wrap live-updating output in `preview()` and keep inputs **outside** it:
+ShinyState **automatically** keeps `bindTextInput()`, `bindTextArea()`, and `bindNumericInput()` mounted while you type. Everything else in your `render()` live-updates as usual — no extra wrappers needed.
 
 ```{r}
 render = function(state, ns) {
@@ -264,15 +264,13 @@ render = function(state, ns) {
 
   tagList(
     bindTextInput(ns, "title", "Title", state$title, update = "input"),
-    preview(
-      h3(state$title),
-      p("Characters:", nchar(state$title))
-    )
+    h3(state$title),
+    p("Characters:", nchar(state$title))
   )
 }
 ```
 
-Controls render once; only the preview region updates while you type.
+Optional: use `preview()` to manually mark a dynamic region (rarely needed).
 
 ---
 
@@ -435,7 +433,7 @@ ShinyState still uses Shiny internally, but hides it:
 2. `render()` runs in a hook context
 3. State changes invalidate an internal counter
 4. `renderUI()` rebuilds component UI
-5. `preview()` regions update separately so text inputs stay mounted
+5. Dynamic regions update separately so text inputs stay mounted
 6. Effects run after render when deps change
 
 ---
@@ -451,7 +449,7 @@ ShinyState still uses Shiny internally, but hides it:
 | `useReducer` | `useReducer()` |
 | onClick handler | `useCallback()` + `bindButton()` |
 | onChange handler | `useInput()` + `bindTextInput()` / `bind*()` |
-| Live output region | `preview()` |
+| Live output region | Automatic (or optional `preview()`) |
 
 ---
 
@@ -459,7 +457,7 @@ ShinyState still uses Shiny internally, but hides it:
 
 - Keep one concern per component
 - Prefer `bindButton()` and `bind*()` helpers inside `render()` — not raw Shiny inputs
-- Put live-updating display (tables, summaries) inside `preview()` when using text inputs
+- Text inputs keep focus automatically; put tables and summaries anywhere in `render()`
 - Use `effect()` for side effects, not UI logic
 - Use `useMemo()` for expensive derived values
 - Mount multiple components with `mount()` / `serve()`
@@ -472,7 +470,7 @@ ShinyState still uses Shiny internally, but hides it:
 |---------|----------------|
 | Blank component area | Old app process still running; restart R + app |
 | Handler fires twice | Used `actionButton()` instead of `bindButton()` |
-| Text input loses focus after one character | Put dynamic UI in `preview()`; keep `bindTextInput()` outside it |
+| Text input loses focus after one character | Reinstall v0.4.0+; use `bindTextInput()` not raw `textInput()` |
 | `bindButton` / `preview` not found | Reinstall latest package version |
 | Example path is `""` | Example not in installed package yet |
 

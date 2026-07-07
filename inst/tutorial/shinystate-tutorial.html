@@ -685,23 +685,23 @@ callback</li>
 </section>
 <section id="text-input-focus" class="slide level2">
 <h2>Text input focus</h2>
-<p>Rebuilding the whole UI on every keystroke destroys the focused
-input.</p>
-<p><strong>Solution:</strong> wrap live-updating output in
-<code>preview()</code> and keep inputs <strong>outside</strong> it:</p>
+<p>Rebuilding text inputs on every keystroke destroys focus.</p>
+<p>ShinyState <strong>automatically</strong> keeps
+<code>bindTextInput()</code>, <code>bindTextArea()</code>, and
+<code>bindNumericInput()</code> mounted while you type. Everything else
+in your <code>render()</code> live-updates as usual — no extra wrappers
+needed.</p>
 <div class="sourceCode" id="cb13"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb13-1"><a href="#cb13-1" aria-hidden="true" tabindex="-1"></a>render <span class="ot">=</span> <span class="cf">function</span>(state, ns) {</span>
 <span id="cb13-2"><a href="#cb13-2" aria-hidden="true" tabindex="-1"></a>  <span class="fu">useInput</span>(<span class="st">&quot;title&quot;</span>)</span>
 <span id="cb13-3"><a href="#cb13-3" aria-hidden="true" tabindex="-1"></a></span>
 <span id="cb13-4"><a href="#cb13-4" aria-hidden="true" tabindex="-1"></a>  <span class="fu">tagList</span>(</span>
 <span id="cb13-5"><a href="#cb13-5" aria-hidden="true" tabindex="-1"></a>    <span class="fu">bindTextInput</span>(ns, <span class="st">&quot;title&quot;</span>, <span class="st">&quot;Title&quot;</span>, state<span class="sc">$</span>title, <span class="at">update =</span> <span class="st">&quot;input&quot;</span>),</span>
-<span id="cb13-6"><a href="#cb13-6" aria-hidden="true" tabindex="-1"></a>    <span class="fu">preview</span>(</span>
-<span id="cb13-7"><a href="#cb13-7" aria-hidden="true" tabindex="-1"></a>      <span class="fu">h3</span>(state<span class="sc">$</span>title),</span>
-<span id="cb13-8"><a href="#cb13-8" aria-hidden="true" tabindex="-1"></a>      <span class="fu">p</span>(<span class="st">&quot;Characters:&quot;</span>, <span class="fu">nchar</span>(state<span class="sc">$</span>title))</span>
-<span id="cb13-9"><a href="#cb13-9" aria-hidden="true" tabindex="-1"></a>    )</span>
-<span id="cb13-10"><a href="#cb13-10" aria-hidden="true" tabindex="-1"></a>  )</span>
-<span id="cb13-11"><a href="#cb13-11" aria-hidden="true" tabindex="-1"></a>}</span></code></pre></div>
-<p>Controls render once; only the preview region updates while you
-type.</p>
+<span id="cb13-6"><a href="#cb13-6" aria-hidden="true" tabindex="-1"></a>    <span class="fu">h3</span>(state<span class="sc">$</span>title),</span>
+<span id="cb13-7"><a href="#cb13-7" aria-hidden="true" tabindex="-1"></a>    <span class="fu">p</span>(<span class="st">&quot;Characters:&quot;</span>, <span class="fu">nchar</span>(state<span class="sc">$</span>title))</span>
+<span id="cb13-8"><a href="#cb13-8" aria-hidden="true" tabindex="-1"></a>  )</span>
+<span id="cb13-9"><a href="#cb13-9" aria-hidden="true" tabindex="-1"></a>}</span></code></pre></div>
+<p>Optional: use <code>preview()</code> to manually mark a dynamic
+region (rarely needed).</p>
 </section>
 <section id="other-bound-inputs" class="slide level2">
 <h2>Other bound inputs</h2>
@@ -854,8 +854,7 @@ type.</p>
 <li><code>render()</code> runs in a hook context</li>
 <li>State changes invalidate an internal counter</li>
 <li><code>renderUI()</code> rebuilds component UI</li>
-<li><code>preview()</code> regions update separately so text inputs stay
-mounted</li>
+<li>Dynamic regions update separately so text inputs stay mounted</li>
 <li>Effects run after render when deps change</li>
 </ol>
 </section>
@@ -900,7 +899,7 @@ mounted</li>
 </tr>
 <tr class="even">
 <td>Live output region</td>
-<td><code>preview()</code></td>
+<td>Automatic (or optional <code>preview()</code>)</td>
 </tr>
 </tbody>
 </table>
@@ -911,8 +910,8 @@ mounted</li>
 <li>Keep one concern per component</li>
 <li>Prefer <code>bindButton()</code> and <code>bind*()</code> helpers
 inside <code>render()</code> — not raw Shiny inputs</li>
-<li>Put live-updating display (tables, summaries) inside
-<code>preview()</code> when using text inputs</li>
+<li>Text inputs keep focus automatically; put tables and summaries
+anywhere in <code>render()</code></li>
 <li>Use <code>effect()</code> for side effects, not UI logic</li>
 <li>Use <code>useMemo()</code> for expensive derived values</li>
 <li>Mount multiple components with <code>mount()</code> /
@@ -944,8 +943,8 @@ inside <code>render()</code> — not raw Shiny inputs</li>
 </tr>
 <tr class="odd">
 <td>Text input loses focus after one character</td>
-<td>Put dynamic UI in <code>preview()</code>; keep
-<code>bindTextInput()</code> outside it</td>
+<td>Reinstall v0.4.0+; use <code>bindTextInput()</code> not raw
+<code>textInput()</code></td>
 </tr>
 <tr class="even">
 <td><code>bindButton</code> / <code>preview</code> not found</td>

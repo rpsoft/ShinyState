@@ -85,7 +85,7 @@ bindDateInput(ns, input_id, label, value, min = NULL, max = NULL)
 \item{width}{Optional CSS width (e.g. \code{"100\%"}).}
 
 \item{update}{When to sync state: \code{"blur"} (default) or \code{"input"} (live updates).
-Pair live text updates with \code{\link{preview}} so controls are not rebuilt while typing.}
+With \code{update = "input"}, non-typing UI live-updates automatically while typing.}
 
 \item{debounce_ms}{Ignored (kept for backwards compatibility).}
 

@@ -2,7 +2,7 @@
 % Please edit documentation in R/preview.R
 \name{preview}
 \alias{preview}
-\title{Reactive preview region}
+\title{Reactive preview region (optional)}
 \usage{
 preview(...)
 }
@@ -13,9 +13,14 @@ preview(...)
 A \code{\link[shiny:uiOutput]{shiny::uiOutput()}} placeholder rendered into a separate output.
 }
 \description{
-Wrap UI that should update when component state changes without rebuilding
-bound text inputs. Place dynamic output (tables, summaries, plots) inside
-\code{preview()}; keep \code{bindTextInput()} and similar controls outside it.
+Explicitly mark a UI region that should update with state changes. This is
+usually unnecessary: when \code{bindTextInput()}, \code{bindTextArea()}, or
+\code{bindNumericInput()} are present, ShinyState automatically keeps those
+controls mounted and live-updates everything else in \code{render()}.
+}
+\details{
+Use \code{preview()} only when you need a separate update region inside a subtree
+that also contains typing controls.
 }
 \examples{
 \dontrun{
@@ -23,10 +28,7 @@ render = function(state, ns) {
   useInput("title")
   tagList(
     bindTextInput(ns, "title", "Title", state$title, update = "input"),
-    preview(
-      h3(state$title),
-      p("Characters:", nchar(state$title))
-    )
+    h3(state$title)
   )
 }
 }

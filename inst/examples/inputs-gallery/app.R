@@ -52,6 +52,25 @@ inputs_gallery <- component(
       )
     })
 
+    summary_text <- useMemo(
+      function() {
+        paste(
+          "Title:", state$title,
+          "| Active:", state$active,
+          "| Species:", state$species,
+          "| Colors:", paste(state$colors, collapse = ", "),
+          "| Volume:", state$volume
+        )
+      },
+      deps = c("title", "active", "species", "colors", "volume")
+    )
+
+    state_json <- if (requireNamespace("jsonlite", quietly = TRUE)) {
+      jsonlite::toJSON(state$all(), auto_unbox = TRUE, pretty = TRUE)
+    } else {
+      paste(capture.output(str(state$all())), collapse = "\n")
+    }
+
     fluidPage(
       titlePanel("ShinyState Inputs Gallery"),
       fluidRow(
@@ -94,48 +113,27 @@ inputs_gallery <- component(
         ),
         column(
           width = 6,
-          preview(
-            h3("Live preview"),
-            p(
-              useMemo(
-                function() {
-                  paste(
-                    "Title:", state$title,
-                    "| Active:", state$active,
-                    "| Species:", state$species,
-                    "| Colors:", paste(state$colors, collapse = ", "),
-                    "| Volume:", state$volume
-                  )
-                },
-                deps = c("title", "active", "species", "colors", "volume")
-              )
-            ),
-            tags$table(
-              class = "table table-striped",
-              tags$tbody(
-                tags$tr(tags$td("Title"), tags$td(state$title)),
-                tags$tr(tags$td("Notes"), tags$td(state$notes)),
-                tags$tr(tags$td("Sample size"), tags$td(state$sample_size)),
-                tags$tr(tags$td("Active"), tags$td(state$active)),
-                tags$tr(tags$td("Notifications"), tags$td(state$notifications)),
-                tags$tr(tags$td("Species"), tags$td(state$species)),
-                tags$tr(tags$td("Colors"), tags$td(paste(state$colors, collapse = ", "))),
-                tags$tr(tags$td("Region"), tags$td(state$region)),
-                tags$tr(tags$td("Regions"), tags$td(paste(state$regions, collapse = ", "))),
-                tags$tr(tags$td("Volume"), tags$td(state$volume)),
-                tags$tr(tags$td("Start date"), tags$td(as.character(state$start_date)))
-              )
-            ),
-            tags$details(
-              tags$summary("Raw state JSON"),
-              tags$pre(
-                if (requireNamespace("jsonlite", quietly = TRUE)) {
-                  jsonlite::toJSON(state$all(), auto_unbox = TRUE, pretty = TRUE)
-                } else {
-                  paste(capture.output(str(state$all())), collapse = "\n")
-                }
-              )
+          h3("Live preview"),
+          p(summary_text),
+          tags$table(
+            class = "table table-striped",
+            tags$tbody(
+              tags$tr(tags$td("Title"), tags$td(state$title)),
+              tags$tr(tags$td("Notes"), tags$td(state$notes)),
+              tags$tr(tags$td("Sample size"), tags$td(state$sample_size)),
+              tags$tr(tags$td("Active"), tags$td(state$active)),
+              tags$tr(tags$td("Notifications"), tags$td(state$notifications)),
+              tags$tr(tags$td("Species"), tags$td(state$species)),
+              tags$tr(tags$td("Colors"), tags$td(paste(state$colors, collapse = ", "))),
+              tags$tr(tags$td("Region"), tags$td(state$region)),
+              tags$tr(tags$td("Regions"), tags$td(paste(state$regions, collapse = ", "))),
+              tags$tr(tags$td("Volume"), tags$td(state$volume)),
+              tags$tr(tags$td("Start date"), tags$td(as.character(state$start_date)))
             )
+          ),
+          tags$details(
+            tags$summary("Raw state JSON"),
+            tags$pre(state_json)
           )
         )
       )

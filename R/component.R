@@ -119,8 +119,14 @@ componentServer <- function(id, initial_state = list(), effect_specs = list(), r
       controls_version(controls_version() + 1L)
     }
 
+    has_live_preview <- function() {
+      isTRUE(ctx_has_preview) ||
+        identical(ctx$preview_mode, "auto") ||
+        identical(ctx$preview_mode, "explicit")
+    }
+
     schedule_rerender <- function() {
-      if (isTRUE(ctx_has_preview)) {
+      if (has_live_preview()) {
         version(version() + 1L)
         if (isTRUE(editing_text())) {
           pending_controls <<- TRUE
@@ -138,6 +144,7 @@ componentServer <- function(id, initial_state = list(), effect_specs = list(), r
     }
 
     ctx <- new_hook_context(id, store, schedule_rerender, ns = ns, input = input)
+    ctx$preview_mode <- "none"
     state_accessor <- make_state_accessor(store, schedule_rerender, refresh_controls)
 
     shiny::observeEvent(
@@ -145,6 +152,9 @@ componentServer <- function(id, initial_state = list(), effect_specs = list(), r
       {
         editing_text(isTRUE(input$`.shinystate_editing`))
         if (!isTRUE(input$`.shinystate_editing`) && pending_controls) {
+          if (identical(ctx$preview_mode, "auto") || identical(ctx$preview_mode, "explicit")) {
+            version(version() + 1L)
+          }
           refresh_controls()
         }
       },
@@ -174,7 +184,7 @@ componentServer <- function(id, initial_state = list(), effect_specs = list(), r
       ignoreNULL = TRUE
     )
 
-    render_component <- function() {
+    render_raw_ui <- function() {
       reset_hook_index(ctx)
       ctx$in_render <- TRUE
       ctx$effect_specs <- list()
@@ -190,7 +200,7 @@ componentServer <- function(id, initial_state = list(), effect_specs = list(), r
       }
 
       nformals <- length(formals(render_fn))
-      result <- with_hook_context(ctx, {
+      with_hook_context(ctx, {
         if (nformals >= 2L) {
           render_fn(state_accessor, ns)
         } else if (nformals >= 1L) {
@@ -199,17 +209,64 @@ componentServer <- function(id, initial_state = list(), effect_specs = list(), r
           render_fn()
         }
       })
+    }
 
-      ctx_has_preview <<- !is.null(ctx$preview_fn)
-      if (!is.null(ctx$preview_fn)) {
-        ctx$stored_preview_fn <- ctx$preview_fn
+    live_slot_cache <- list(key = NULL, slots = NULL)
+
+    get_live_slots <- function() {
+      cache_key <- paste0(controls_version(), ":", version())
+      if (!identical(live_slot_cache$key, cache_key)) {
+        raw <- render_raw_ui()
+        live_slot_cache$slots <<- if (tree_contains_typing_control(raw)) {
+          extract_ui_slots(raw)
+        } else {
+          list()
+        }
+        live_slot_cache$key <<- cache_key
       }
-      list(ui = result, preview_fn = ctx$preview_fn)
+      live_slot_cache$slots
+    }
+
+    render_live_slot <- function(slot_id) {
+      slots <- get_live_slots()
+      content <- slots[[slot_id]]
+      if (is.null(content)) {
+        return(NULL)
+      }
+      htmltools::tagList(!!!content)
+    }
+
+    render_component <- function() {
+      result <- render_raw_ui()
+      live_slot_cache$key <<- NULL
+
+      if (!is.null(ctx$preview_fn)) {
+        ctx$preview_mode <<- "explicit"
+        ctx_has_preview <<- TRUE
+        ctx$stored_preview_fn <- ctx$preview_fn
+        return(list(ui = result, preview_fn = ctx$preview_fn))
+      }
+
+      if (tree_contains_typing_control(result)) {
+        partitioned <- partition_ui(result, ns)
+        if (length(partitioned$slots) > 0L) {
+          ctx$preview_mode <<- "auto"
+          ctx_has_preview <<- TRUE
+          return(list(ui = partitioned$ui, preview_fn = NULL))
+        }
+      }
+
+      ctx$preview_mode <<- "none"
+      ctx_has_preview <<- FALSE
+      list(ui = result, preview_fn = NULL)
     }
 
     render_preview <- function() {
+      if (!identical(ctx$preview_mode, "explicit")) {
+        return(NULL)
+      }
       preview_fn <- ctx$stored_preview_fn
-      if (!isTRUE(ctx_has_preview) || is.null(preview_fn)) {
+      if (is.null(preview_fn)) {
         return(NULL)
       }
 
@@ -247,7 +304,7 @@ componentServer <- function(id, initial_state = list(), effect_specs = list(), r
     output$shinystate_preview <- shiny::renderUI({
       version()
       shiny::isolate({
-        if (!isTRUE(ctx_has_preview)) {
+        if (!identical(ctx$preview_mode, "explicit")) {
           return(NULL)
         }
         tryCatch(
@@ -262,6 +319,30 @@ componentServer <- function(id, initial_state = list(), effect_specs = list(), r
         )
       })
     })
+
+    for (i in seq_len(max_auto_preview_slots)) {
+      local({
+        slot_id <- auto_preview_slot_id(i)
+        output[[slot_id]] <- shiny::renderUI({
+          version()
+          shiny::isolate({
+            if (!identical(ctx$preview_mode, "auto")) {
+              return(NULL)
+            }
+            tryCatch(
+              render_live_slot(slot_id),
+              error = function(e) {
+                shiny::div(
+                  style = "color: #b00020; padding: 1em; border: 1px solid #b00020;",
+                  shiny::strong("ShinyState preview error: "),
+                  conditionMessage(e)
+                )
+              }
+            )
+          })
+        })
+      })
+    }
   }
 }
 

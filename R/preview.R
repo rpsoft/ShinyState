@@ -1,8 +1,12 @@
-#' Reactive preview region
+#' Reactive preview region (optional)
 #'
-#' Wrap UI that should update when component state changes without rebuilding
-#' bound text inputs. Place dynamic output (tables, summaries, plots) inside
-#' `preview()`; keep `bindTextInput()` and similar controls outside it.
+#' Explicitly mark a UI region that should update with state changes. This is
+#' usually unnecessary: when `bindTextInput()`, `bindTextArea()`, or
+#' `bindNumericInput()` are present, ShinyState automatically keeps those
+#' controls mounted and live-updates everything else in `render()`.
+#'
+#' Use `preview()` only when you need a separate update region inside a subtree
+#' that also contains typing controls.
 #'
 #' @param ... UI tags recomputed on every state change.
 #'
@@ -16,10 +20,7 @@
 #'   useInput("title")
 #'   tagList(
 #'     bindTextInput(ns, "title", "Title", state$title, update = "input"),
-#'     preview(
-#'       h3(state$title),
-#'       p("Characters:", nchar(state$title))
-#'     )
+#'     h3(state$title)
 #'   )
 #' }
 #' }
