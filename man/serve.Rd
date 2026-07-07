@@ -4,12 +4,16 @@
 \alias{serve}
 \title{Run server logic for a mounted component}
 \usage{
-serve(component, input, output, session)
+serve(component, input, output, session, is_active = NULL)
 }
 \arguments{
 \item{component}{A component list returned by \code{\link[=component]{component()}}.}
 
 \item{input, output, session}{Shiny server function arguments.}
+
+\item{is_active}{Optional reactive expression returning \code{TRUE} when the
+component should be active. When \code{FALSE}, the component is dormant: no
+render, effects, or event handling. See \code{\link[=serve_dormant]{serve_dormant()}}.}
 }
 \description{
 Run server logic for a mounted component

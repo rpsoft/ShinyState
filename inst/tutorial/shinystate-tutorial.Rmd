@@ -384,23 +384,31 @@ shiny::runApp("inst/examples/counter")
 
 ## Multi-page apps
 
-Use Shiny tabs + one component per page:
+Use Shiny tabs + one component per page. Give each tab an explicit `value` and use [serve_dormant()] so hidden tabs stay **dormant** (no render, effects, or events):
 
 ```{r}
 shinyApp(
   ui = navbarPage(
-    "Multipage",
-    tabPanel("Dashboard", mount(counter_component)),
-    tabPanel("Search", mount(filter_component)),
-    tabPanel("Reducer", mount(reducer_component))
+    id = "pages",
+    tabPanel("Dashboard", mount(counter_component), value = "dashboard"),
+    tabPanel("Search", mount(filter_component), value = "search"),
+    tabPanel("Reducer", mount(reducer_component), value = "reducer")
   ),
   server = function(input, output, session) {
-    serve(counter_component, input, output, session)
-    serve(filter_component, input, output, session)
-    serve(reducer_component, input, output, session)
+    serve_dormant(
+      session = session, input = input, output = output,
+      navbar = "pages",
+      dashboard = counter_component,
+      search = filter_component,
+      reducer = reducer_component
+    )
   }
 )
 ```
+
+Component state is preserved when you switch tabs — only the visible page runs.
+
+For a single always-visible component, use [serve()] as before.
 
 ---
 
@@ -478,6 +486,7 @@ ShinyState still uses Shiny internally, but hides it:
 5. Display-only regions render in separate `uiOutput` slots that update live
 6. While typing, only preview slots refresh — inputs keep focus
 7. Effects run after render when deps change
+8. Hidden tabs can stay **dormant** via [serve_dormant()] — no render, effects, or events until shown
 
 Bootstrap / Shiny CSS from `fluidPage()` is preserved after auto-split.
 
@@ -495,6 +504,7 @@ Bootstrap / Shiny CSS from `fluidPage()` is preserved after auto-split.
 | onClick handler | `useCallback()` + `bindButton()` |
 | onChange handler | `useInput()` + `bindTextInput()` / `bind*()` |
 | Live output region | Automatic (or optional `preview()`) |
+| Tab lifecycle | `serve_dormant()` |
 
 ---
 
@@ -506,7 +516,8 @@ Bootstrap / Shiny CSS from `fluidPage()` is preserved after auto-split.
 - Use `update = "input"` on text fields when you want live preview while typing
 - Use `effect()` for side effects, not UI logic
 - Use `useMemo()` for expensive derived values
-- Mount multiple components with `mount()` / `serve()`
+- Use `serve_dormant()` for tabbed apps so hidden pages stay dormant
+- Mount multiple components with `mount()` / `serve()` / `serve_dormant()`
 
 ---
 
@@ -520,7 +531,7 @@ Bootstrap / Shiny CSS from `fluidPage()` is preserved after auto-split.
 | Preview only updates on blur | Text field uses `update = "blur"`; try `update = "input"` |
 | Layout looks unstyled | Reinstall v0.4.0+ (Bootstrap deps preserved after auto-split) |
 | `bindButton` / `preview` not found | Reinstall latest package version |
-| Example path is `""` | Example not in installed package yet |
+| Hidden tab still runs effects | Use [serve_dormant()] with tab `value` ids |
 
 ---
 
@@ -541,6 +552,7 @@ bindTextInput(ns, input_id, label, value, update = "input")
 bindSelect(ns, input_id, label, choices, selected)
 mount(component)
 serve(component, input, output, session)
+serve_dormant(session, input, output, navbar, ...)
 ```
 
 ---

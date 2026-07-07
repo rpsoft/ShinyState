@@ -259,3 +259,17 @@ run_effects <- function(ctx, state_accessor, is_first_run = FALSE) {
 
   invisible(NULL)
 }
+
+#' @keywords internal
+run_effect_cleanups <- function(ctx) {
+  if (is.null(ctx$effect_cleanup)) {
+    return(invisible(NULL))
+  }
+  for (cleanup in ctx$effect_cleanup) {
+    if (is.function(cleanup)) {
+      tryCatch(cleanup(), error = function(e) NULL)
+    }
+  }
+  ctx$effect_cleanup <- list()
+  invisible(NULL)
+}

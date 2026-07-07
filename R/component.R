@@ -105,7 +105,7 @@ componentServer <- function(id, initial_state = list(), effect_specs = list(), r
   force(effect_specs)
   force(render_fn)
 
-  function(input, output, session) {
+  function(input, output, session, is_active = NULL) {
     ns <- session$ns
     store <- new_state_store(initial_state)
     version <- shiny::reactiveVal(0L)
@@ -113,6 +113,16 @@ componentServer <- function(id, initial_state = list(), effect_specs = list(), r
     editing_text <- shiny::reactiveVal(FALSE)
     pending_controls <- FALSE
     ctx_has_preview <- FALSE
+
+    active_reactive <- if (is.null(is_active)) {
+      shiny::reactive(TRUE)
+    } else {
+      is_active
+    }
+
+    is_component_active <- function() {
+      isTRUE(active_reactive())
+    }
 
     refresh_controls <- function() {
       pending_controls <<- FALSE
@@ -126,6 +136,9 @@ componentServer <- function(id, initial_state = list(), effect_specs = list(), r
     }
 
     schedule_rerender <- function() {
+      if (isTRUE(ctx$dormant)) {
+        return(invisible(NULL))
+      }
       if (has_live_preview()) {
         version(version() + 1L)
         if (isTRUE(editing_text())) {
@@ -145,11 +158,32 @@ componentServer <- function(id, initial_state = list(), effect_specs = list(), r
 
     ctx <- new_hook_context(id, store, schedule_rerender, ns = ns, input = input)
     ctx$preview_mode <- "none"
+    ctx$dormant <- !is.null(is_active)
     state_accessor <- make_state_accessor(store, schedule_rerender, refresh_controls)
+
+    if (!is.null(is_active)) {
+      shiny::observe({
+        if (is_component_active()) {
+          if (isTRUE(ctx$dormant)) {
+            ctx$dormant <- FALSE
+            controls_version(controls_version() + 1L)
+            if (has_live_preview()) {
+              version(version() + 1L)
+            }
+          }
+        } else if (!isTRUE(ctx$dormant)) {
+          ctx$dormant <- TRUE
+          run_effect_cleanups(ctx)
+        }
+      })
+    }
 
     shiny::observeEvent(
       input$`.shinystate_editing`,
       {
+        if (isTRUE(ctx$dormant)) {
+          return()
+        }
         editing_text(isTRUE(input$`.shinystate_editing`))
         if (!isTRUE(input$`.shinystate_editing`) && pending_controls) {
           if (identical(ctx$preview_mode, "auto") || identical(ctx$preview_mode, "explicit")) {
@@ -165,6 +199,9 @@ componentServer <- function(id, initial_state = list(), effect_specs = list(), r
     shiny::observeEvent(
       input$`.shinystate_event`,
       {
+        if (isTRUE(ctx$dormant)) {
+          return()
+        }
         payload <- shiny::req(input$`.shinystate_event`)
         handler <- ctx$callback_handlers[[payload$id]]
         if (is.null(handler)) {
@@ -281,6 +318,9 @@ componentServer <- function(id, initial_state = list(), effect_specs = list(), r
 
     output$ui <- shiny::renderUI({
       controls_version()
+      if (isTRUE(ctx$dormant)) {
+        return(NULL)
+      }
       shiny::isolate({
         tryCatch(
           {
@@ -303,6 +343,9 @@ componentServer <- function(id, initial_state = list(), effect_specs = list(), r
 
     output$shinystate_preview <- shiny::renderUI({
       version()
+      if (isTRUE(ctx$dormant)) {
+        return(NULL)
+      }
       shiny::isolate({
         if (!identical(ctx$preview_mode, "explicit")) {
           return(NULL)
@@ -325,6 +368,9 @@ componentServer <- function(id, initial_state = list(), effect_specs = list(), r
         slot_id <- auto_preview_slot_id(i)
         output[[slot_id]] <- shiny::renderUI({
           version()
+          if (isTRUE(ctx$dormant)) {
+            return(NULL)
+          }
           shiny::isolate({
             if (!identical(ctx$preview_mode, "auto")) {
               return(NULL)
@@ -360,10 +406,23 @@ mount <- function(component, ...) {
 #'
 #' @param component A component list returned by [component()].
 #' @param input,output,session Shiny server function arguments.
+#' @param is_active Optional reactive expression returning `TRUE` when the
+#'   component should be active. When `FALSE`, the component is dormant: no
+#'   render, effects, or event handling. See [serve_dormant()].
 #'
 #' @export
-serve <- function(component, input, output, session) {
-  shiny::moduleServer(component$id, component$server, session = session)
+serve <- function(component, input, output, session, is_active = NULL) {
+  active_reactive <- if (is.null(is_active)) {
+    NULL
+  } else {
+    shiny::reactive({
+      is_active()
+    })
+  }
+  module <- function(input, output, session) {
+    component$server(input, output, session, is_active = active_reactive)
+  }
+  shiny::moduleServer(component$id, module, session = session)
 }
 
 #' Wrap a component as a Shiny module

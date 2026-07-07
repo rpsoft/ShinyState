@@ -96,13 +96,18 @@ reducer_component <- component(
 shinyApp(
   ui = navbarPage(
     "ShinyState Multipage Example",
-    tabPanel("Dashboard", mount(counter_component)),
-    tabPanel("Search", mount(filter_component)),
-    tabPanel("Reducer", mount(reducer_component))
+    id = "pages",
+    tabPanel("Dashboard", mount(counter_component), value = "dashboard"),
+    tabPanel("Search", mount(filter_component), value = "search"),
+    tabPanel("Reducer", mount(reducer_component), value = "reducer")
   ),
   server = function(input, output, session) {
-    serve(counter_component, input, output, session)
-    serve(filter_component, input, output, session)
-    serve(reducer_component, input, output, session)
+    serve_dormant(
+      session = session, input = input, output = output,
+      navbar = "pages",
+      dashboard = counter_component,
+      search = filter_component,
+      reducer = reducer_component
+    )
   }
 )

@@ -32,6 +32,7 @@ Open `shinystate-tutorial.Rmd` and click **Knit** (with `revealjs` installed).
 - Components and hooks (`useState`, `effect`, `useMemo`, `useReducer`, `useCallback`)
 - Bound inputs (`bindButton()`, `bindTextInput()`, and related helpers)
 - Automatic UI splitting for focus-safe text inputs (optional `preview()`)
+- Dormant tab lifecycle with `serve_dormant()`
 - Multi-page apps with multiple components
 - Shared state across components
 - Bundled examples and troubleshooting
