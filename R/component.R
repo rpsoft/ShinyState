@@ -92,8 +92,25 @@ component <- function(id, ..., render) {
 componentUI <- function(id) {
   ns <- shiny::NS(id)
   function(...) {
-    shiny::uiOutput(ns("ui"))
+    htmltools::tagList(
+      shinystate_dependency(),
+      shiny::div(id = ns("ui"), class = "shinystate-output")
+    )
   }
+}
+
+#' @keywords internal
+shinystate_dependency <- function() {
+  version <- tryCatch(
+    as.character(utils::packageVersion("ShinyState")),
+    error = function(e) "0.0.0"
+  )
+  htmltools::htmlDependency(
+    name = "shinystate",
+    version = version,
+    src = c(file = system.file("www", package = "ShinyState")),
+    script = "shinystate.js"
+  )
 }
 
 #' @rdname component
@@ -119,10 +136,6 @@ componentServer <- function(id, initial_state = list(), effect_specs = list(), r
     ns <- session$ns
     store <- new_state_store(initial_state)
     version <- shiny::reactiveVal(0L)
-    controls_version <- shiny::reactiveVal(0L)
-    editing_text <- shiny::reactiveVal(FALSE)
-    pending_controls <- FALSE
-    ctx_has_preview <- FALSE
 
     active_reactive <- if (is.null(is_active)) {
       shiny::reactive(TRUE)
@@ -134,52 +147,25 @@ componentServer <- function(id, initial_state = list(), effect_specs = list(), r
       isTRUE(active_reactive())
     }
 
-    refresh_controls <- function() {
-      pending_controls <<- FALSE
-      controls_version(controls_version() + 1L)
-    }
-
-    has_live_preview <- function() {
-      isTRUE(ctx_has_preview) ||
-        identical(ctx$preview_mode, "auto") ||
-        identical(ctx$preview_mode, "explicit")
-    }
-
     schedule_rerender <- function() {
       if (isTRUE(ctx$dormant)) {
         return(invisible(NULL))
       }
-      if (has_live_preview()) {
-        version(version() + 1L)
-        if (isTRUE(editing_text())) {
-          pending_controls <<- TRUE
-        } else {
-          controls_version(controls_version() + 1L)
-        }
-        return(invisible(NULL))
-      }
-
-      if (isTRUE(editing_text())) {
-        pending_controls <<- TRUE
-        return(invisible(NULL))
-      }
-      controls_version(controls_version() + 1L)
+      version(version() + 1L)
+      invisible(NULL)
     }
 
     ctx <- new_hook_context(id, store, schedule_rerender, ns = ns, input = input)
-    ctx$preview_mode <- "none"
+    ctx$session <- session
     ctx$dormant <- !is.null(is_active)
-    state_accessor <- make_state_accessor(store, schedule_rerender, refresh_controls)
+    state_accessor <- make_state_accessor(store, schedule_rerender)
 
     if (!is.null(is_active)) {
       shiny::observe({
         if (is_component_active()) {
           if (isTRUE(ctx$dormant)) {
             ctx$dormant <- FALSE
-            controls_version(controls_version() + 1L)
-            if (has_live_preview()) {
-              version(version() + 1L)
-            }
+            version(version() + 1L)
           }
         } else if (!isTRUE(ctx$dormant)) {
           ctx$dormant <- TRUE
@@ -187,24 +173,6 @@ componentServer <- function(id, initial_state = list(), effect_specs = list(), r
         }
       })
     }
-
-    shiny::observeEvent(
-      input$`.shinystate_editing`,
-      {
-        if (isTRUE(ctx$dormant)) {
-          return()
-        }
-        editing_text(isTRUE(input$`.shinystate_editing`))
-        if (!isTRUE(input$`.shinystate_editing`) && pending_controls) {
-          if (identical(ctx$preview_mode, "auto") || identical(ctx$preview_mode, "explicit")) {
-            version(version() + 1L)
-          }
-          refresh_controls()
-        }
-      },
-      ignoreInit = TRUE,
-      ignoreNULL = FALSE
-    )
 
     shiny::observeEvent(
       input$`.shinystate_event`,
@@ -235,7 +203,6 @@ componentServer <- function(id, initial_state = list(), effect_specs = list(), r
       reset_hook_index(ctx)
       ctx$in_render <- TRUE
       ctx$effect_specs <- list()
-      ctx$preview_fn <- NULL
 
       on.exit({
         ctx$in_render <- FALSE
@@ -258,148 +225,24 @@ componentServer <- function(id, initial_state = list(), effect_specs = list(), r
       })
     }
 
-    live_slot_cache <- list(key = NULL, slots = NULL)
-
-    registered_slots <- character(0)
-
-    ensure_slot_outputs <- function(slot_ids) {
-      for (slot_id in setdiff(slot_ids, registered_slots)) {
-        local({
-          sid <- slot_id
-          output[[sid]] <- shiny::renderUI({
-            version()
-            if (isTRUE(ctx$dormant)) {
-              return(NULL)
-            }
-            shiny::isolate({
-              if (!identical(ctx$preview_mode, "auto")) {
-                return(NULL)
-              }
-              tryCatch(
-                render_live_slot(sid),
-                error = function(e) {
-                  shiny::div(
-                    style = "color: #b00020; padding: 1em; border: 1px solid #b00020;",
-                    shiny::strong("ShinyState preview error: "),
-                    conditionMessage(e)
-                  )
-                }
-              )
-            })
-          })
-        })
-        registered_slots <<- c(registered_slots, slot_id)
-      }
-    }
-
-    get_live_slots <- function() {
-      cache_key <- paste0(controls_version(), ":", version())
-      if (!identical(live_slot_cache$key, cache_key)) {
-        raw <- render_raw_ui()
-        live_slot_cache$slots <<- if (tree_contains_typing_control(raw)) {
-          extract_ui_slots(raw)
-        } else {
-          list()
-        }
-        live_slot_cache$key <<- cache_key
-        ensure_slot_outputs(names(live_slot_cache$slots))
-      }
-      live_slot_cache$slots
-    }
-
-    render_live_slot <- function(slot_id) {
-      slots <- get_live_slots()
-      content <- slots[[slot_id]]
-      if (is.null(content)) {
-        return(NULL)
-      }
-      htmltools::tagList(!!!content)
-    }
-
-    render_component <- function() {
-      result <- render_raw_ui()
-      live_slot_cache$key <<- NULL
-
-      if (!is.null(ctx$preview_fn)) {
-        ctx$preview_mode <<- "explicit"
-        ctx_has_preview <<- TRUE
-        ctx$stored_preview_fn <- ctx$preview_fn
-        return(list(ui = result, preview_fn = ctx$preview_fn))
-      }
-
-      if (tree_contains_typing_control(result)) {
-        partitioned <- partition_ui(result, ns)
-        if (length(partitioned$slots) > 0L) {
-          ctx$preview_mode <<- "auto"
-          ctx_has_preview <<- TRUE
-          ensure_slot_outputs(names(partitioned$slots))
-          return(list(ui = partitioned$ui, preview_fn = NULL))
-        }
-      }
-
-      ctx$preview_mode <<- "none"
-      ctx_has_preview <<- FALSE
-      list(ui = result, preview_fn = NULL)
-    }
-
-    render_preview <- function() {
-      if (!identical(ctx$preview_mode, "explicit")) {
-        return(NULL)
-      }
-      preview_fn <- ctx$stored_preview_fn
-      if (is.null(preview_fn)) {
-        return(NULL)
-      }
-
-      reset_hook_index(ctx)
-      ctx$in_render <- TRUE
-      on.exit({
-        ctx$in_render <- FALSE
-      }, add = TRUE)
-
-      with_hook_context(ctx, preview_fn())
-    }
-
     output$ui <- shiny::renderUI({
-      controls_version()
+      version()
       if (isTRUE(ctx$dormant)) {
         return(NULL)
       }
       shiny::isolate({
         tryCatch(
           {
-            rendered <- render_component()
+            result <- render_raw_ui()
             is_first <- is.null(ctx$.has_rendered)
             ctx$.has_rendered <- TRUE
             run_effects(ctx, state_accessor, is_first_run = is_first)
-            wrap_component_ui(ns, rendered$ui)
+            result
           },
           error = function(e) {
             shiny::div(
               style = "color: #b00020; padding: 1em; border: 1px solid #b00020;",
               shiny::strong("ShinyState render error: "),
-              conditionMessage(e)
-            )
-          }
-        )
-      })
-    })
-
-    output$shinystate_preview <- shiny::renderUI({
-      version()
-      if (isTRUE(ctx$dormant)) {
-        return(NULL)
-      }
-      shiny::isolate({
-        if (!identical(ctx$preview_mode, "explicit")) {
-          return(NULL)
-        }
-        tryCatch(
-          render_preview(),
-          error = function(e) {
-            shiny::div(
-              style = "color: #b00020; padding: 1em; border: 1px solid #b00020;",
-              shiny::strong("ShinyState preview error: "),
               conditionMessage(e)
             )
           }

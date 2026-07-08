@@ -47,8 +47,7 @@ inputs_gallery <- component(
         region = "emea",
         regions = c("emea", "apac"),
         volume = 40,
-        start_date = Sys.Date(),
-        .refresh_controls = TRUE
+        start_date = Sys.Date()
       )
     })
 

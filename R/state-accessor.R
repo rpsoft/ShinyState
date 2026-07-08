@@ -8,23 +8,15 @@
 NULL
 
 #' @keywords internal
-make_state_accessor <- function(store, schedule_rerender, refresh_controls = NULL) {
+make_state_accessor <- function(store, schedule_rerender) {
   env <- new.env(parent = emptyenv())
   env$.store <- store
   env$.schedule <- schedule_rerender
-  env$.refresh_controls <- refresh_controls
 
   env$set <- function(...) {
     args <- list(...)
-    refresh <- isTRUE(args$.refresh_controls)
-    if (refresh) {
-      args$.refresh_controls <- NULL
-    }
     do.call(state_set, c(list(store = store), args))
     schedule_rerender()
-    if (refresh && is.function(refresh_controls)) {
-      refresh_controls()
-    }
     invisible(NULL)
   }
 

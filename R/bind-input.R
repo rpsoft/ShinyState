@@ -95,7 +95,7 @@ bindTextInput <- function(ns, input_id, label, value, placeholder = NULL, width 
   event_js <- dispatch_js(ns, input_id, "el.value", mark_editing = update == "input")
 
   shiny::div(
-    class = "form-group shiny-input-container shinystate-typing-control",
+    class = "form-group shiny-input-container",
     shiny::tags$label(label, `for` = ns(input_id)),
     shiny::tags$input(
       id = ns(input_id),
@@ -119,7 +119,7 @@ bindTextArea <- function(ns, input_id, label, value, rows = 3L, placeholder = NU
   event_js <- dispatch_js(ns, input_id, "el.value", mark_editing = update == "input")
 
   shiny::div(
-    class = "form-group shiny-input-container shinystate-typing-control",
+    class = "form-group shiny-input-container",
     shiny::tags$label(label, `for` = ns(input_id)),
     shiny::tags$textarea(
       id = ns(input_id),
@@ -145,7 +145,7 @@ bindNumericInput <- function(ns, input_id, label, value, min = NA, max = NA, ste
   event_js <- dispatch_js(ns, input_id, "parseFloat(el.value)", mark_editing = update == "input")
 
   shiny::div(
-    class = "form-group shiny-input-container shinystate-typing-control",
+    class = "form-group shiny-input-container",
     shiny::tags$label(label, `for` = ns(input_id)),
     shiny::tags$input(
       id = ns(input_id),
