@@ -6,7 +6,13 @@ new_state_store <- function(initial = list()) {
   for (nm in names(initial)) {
     store[[nm]] <- initial[[nm]]
   }
+  attr(store, "ss_version") <- 0L
   store
+}
+
+#' @keywords internal
+state_store_version <- function(store) {
+  attr(store, "ss_version") %||% 0L
 }
 
 #' @keywords internal
@@ -32,5 +38,6 @@ state_set <- function(store, ...) {
   for (name in nm) {
     store[[name]] <- updates[[name]]
   }
+  attr(store, "ss_version") <- (attr(store, "ss_version") %||% 0L) + 1L
   invisible(updates)
 }

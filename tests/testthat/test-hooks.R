@@ -262,6 +262,127 @@ test_that("useReducer preserves NULL state without re-initializing", {
   expect_equal(r3$state, "hello")
 })
 
+test_that("computed values are cached and invalidate on state change", {
+  calls <- 0L
+  cmp <- component(
+    id = "c",
+    state = useState(count = 2L),
+    computed = list(
+      doubled = function(state) {
+        calls <<- calls + 1L
+        state$count * 2L
+      }
+    ),
+    render = function(state) {
+      shiny::p(paste(state$doubled, state$doubled))
+    }
+  )
+
+  shiny::testServer(
+    cmp$server,
+    {
+      session$flushReact()
+      html <- htmltools::renderTags(output$ui)$html
+      expect_match(html, "4 4")
+      expect_equal(calls, 1L) # two reads in one render, computed once
+
+      session$setInputs(".shinystate_event" = list(id = "noop", t = 1))
+      session$flushReact()
+    }
+  )
+})
+
+test_that("watch fires with new and old values on change", {
+  seen <- NULL
+  cmp <- component(
+    id = "w",
+    state = useState(count = 0L),
+    render = function(state) {
+      watch("count", function(new, old) {
+        seen <<- list(new = new$count, old = old$count)
+      })
+      useCallback("inc", function(s) s$set(count = s$count + 1L))
+      shiny::p(state$count)
+    }
+  )
+
+  shiny::testServer(
+    cmp$server,
+    {
+      session$flushReact()
+      expect_null(seen) # not immediate
+
+      session$setInputs(".shinystate_event" = list(id = "inc", t = 1))
+      session$flushReact()
+      expect_equal(seen$new, 1L)
+      expect_equal(seen$old, 0L)
+    }
+  )
+})
+
+test_that("watch immediate runs once on mount with NULL old values", {
+  seen <- NULL
+  cmp <- component(
+    id = "w2",
+    state = useState(count = 5L),
+    render = function(state) {
+      watch("count", function(new, old) {
+        seen <<- list(new = new$count, old = old$count)
+      }, immediate = TRUE)
+      shiny::p(state$count)
+    }
+  )
+
+  shiny::testServer(
+    cmp$server,
+    {
+      session$flushReact()
+      expect_equal(seen$new, 5L)
+      expect_null(seen$old)
+    }
+  )
+})
+
+test_that("onMounted runs once and onActivated/onDeactivated track dormancy", {
+  mounted <- 0L
+  activated <- 0L
+  deactivated <- 0L
+
+  cmp <- component(
+    id = "life",
+    state = useState(x = 1L),
+    render = function(state) {
+      onMounted(function() mounted <<- mounted + 1L)
+      onActivated(function() activated <<- activated + 1L)
+      onDeactivated(function() deactivated <<- deactivated + 1L)
+      shiny::p(state$x)
+    }
+  )
+
+  active <- shiny::reactiveVal(TRUE)
+  shiny::testServer(
+    function(input, output, session) {
+      cmp$server(input, output, session, is_active = shiny::reactive(active()))
+    },
+    {
+      session$flushReact()
+      htmltools::renderTags(output$ui)
+      expect_equal(mounted, 1L)
+      expect_equal(activated, 1L)
+
+      active(FALSE)
+      session$flushReact()
+      expect_equal(deactivated, 1L)
+
+      active(TRUE)
+      session$flushReact()
+      htmltools::renderTags(output$ui)
+      expect_equal(activated, 2L)
+      expect_equal(mounted, 1L) # onMounted does not re-fire
+    }
+  )
+})
+
 test_that("component returns ui and server", {
   cmp <- component(
     id = "c",

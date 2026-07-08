@@ -1,133 +1,56 @@
 library(shiny)
 library(ShinyState)
 
-# Minimal shared-store pattern for ShinyState components.
-createStore <- function(initial) {
-  store <- new.env(parent = emptyenv())
-  store$data <- initial
-  store$listeners <- list()
-
-  store$get <- function() {
-    store$data
-  }
-
-  store$set <- function(...) {
-    updates <- list(...)
-    for (nm in names(updates)) {
-      store$data[[nm]] <- updates[[nm]]
-    }
-    for (id in names(store$listeners)) {
-      listener <- store$listeners[[id]]
-      if (is.function(listener)) {
-        listener(store$data)
-      }
-    }
-    invisible(store$data)
-  }
-
-  store$subscribe <- function(listener) {
-    id <- paste0(as.integer(as.numeric(Sys.time()) * 1000), "_", sample.int(1000, 1))
-    store$listeners[[id]] <- listener
-    function() {
-      store$listeners[[id]] <<- NULL
-      invisible(NULL)
-    }
-  }
-
-  store
-}
-
-shared_store <- createStore(
-  list(
-    count = 0L,
-    history = c("Initialized at 0")
-  )
+# A shared store: state that several components read and write. Components
+# subscribe with useStore() and re-render automatically when it changes.
+app_store <- createStore(
+  count = 0L,
+  history = c("Initialized at 0")
 )
 
 controls_component <- component(
   id = "controls",
-  state = useState(count = 0L),
-  effect(
-    deps = NULL,
-    function(state) {
-      # Sync local component state with global store.
-      unsubscribe <- shared_store$subscribe(function(data) {
-        state$set(count = data$count)
-      })
-      state$set(count = shared_store$get()$count)
-      unsubscribe
-    }
-  ),
   render = function(state) {
-    inc <- function(s) {
-      current <- shared_store$get()
-      next_count <- current$count + 1L
-      shared_store$set(
+    store <- useStore(app_store)
+
+    bump <- function(delta, verb) {
+      next_count <- store$count + delta
+      store$set(
         count = next_count,
-        history = c(current$history, paste("Incremented to", next_count))
-      )
-    }
-    dec <- function(s) {
-      current <- shared_store$get()
-      next_count <- current$count - 1L
-      shared_store$set(
-        count = next_count,
-        history = c(current$history, paste("Decremented to", next_count))
-      )
-    }
-    reset <- function(s) {
-      current <- shared_store$get()
-      shared_store$set(
-        count = 0L,
-        history = c(current$history, "Reset to 0")
+        history = c(store$history, paste(verb, next_count))
       )
     }
 
     tagList(
       h3("Controls Component"),
-      p(paste("Shared count:", state$count)),
-      bindButton("dec", "−", onClick = dec),
-      bindButton("inc", "+", onClick = inc),
-      bindButton("reset", "Reset", onClick = reset)
+      p(paste("Shared count:", store$count)),
+      bindButton("dec", "−", onClick = function(s) bump(-1L, "Decremented to")),
+      bindButton("inc", "+", onClick = function(s) bump(1L, "Incremented to")),
+      bindButton("reset", "Reset", onClick = function(s) {
+        store$set(count = 0L, history = c(store$history, "Reset to 0"))
+      })
     )
   }
 )
 
 history_component <- component(
   id = "history",
-  state = useState(count = 0L, history = c("Waiting for updates...")),
-  effect(
-    deps = NULL,
-    function(state) {
-      unsubscribe <- shared_store$subscribe(function(data) {
-        state$set(count = data$count, history = data$history)
-      })
-      data <- shared_store$get()
-      state$set(count = data$count, history = data$history)
-      unsubscribe
-    }
-  ),
-  render = function(state, ns) {
-    latest <- if (length(state$history) == 0L) "No events yet." else tail(state$history, 1)
-    recent <- rev(utils::tail(state$history, 8))
+  render = function(state) {
+    store <- useStore(app_store)
+    recent <- rev(utils::tail(store$history, 8))
 
     tagList(
       h3("History Component"),
-      p(paste("Shared count seen here:", state$count)),
-      p(paste("Latest event:", latest)),
+      p(paste("Shared count seen here:", store$count)),
+      p(paste("Latest event:", utils::tail(store$history, 1))),
       tags$ul(lapply(recent, tags$li))
     )
   }
 )
 
-shinyApp(
-  ui = navbarPage(
-    "ShinyState Shared Store Example",
-    tabPanel("Controls", mount(controls_component)),
-    tabPanel("History", mount(history_component))
-  ),
-  server = function(input, output, session) {
-    serve(controls_component, input, output, session)
-    serve(history_component, input, output, session)
-  }
+# Both tabs share app_store; changes on one are reflected on the other.
+shinyStateApp(
+  title = "ShinyState Shared Store Example",
+  controls = controls_component,
+  history = history_component
 )

@@ -225,6 +225,43 @@ test_that("plain anchors are ignored and extra route segments are preserved", {
   )
 })
 
+test_that("useRoute exposes the active route inside a routed component", {
+  local_mocked_bindings(
+    push_hash = function(session, hash, mode) NULL,
+    update_tab = function(session, navbar, page) NULL
+  )
+
+  seen_page <- NULL
+  home <- component(
+    id = "home",
+    render = function(state) {
+      route <- useRoute()
+      seen_page <<- if (is.null(route)) NA_character_ else route$page()
+      shiny::p("home")
+    }
+  )
+  other <- component(
+    id = "other",
+    render = function(state) shiny::p("other")
+  )
+
+  shiny::testServer(
+    function(input, output, session) {
+      serve_dormant(
+        session = session, input = input, output = output,
+        navbar = "pages", routing = "hash",
+        home = home, other = other
+      )
+    },
+    {
+      session$setInputs(pages = "home")
+      session$flushReact()
+      htmltools::renderTags(output$`home-ui`)
+      expect_equal(seen_page, "home")
+    }
+  )
+})
+
 test_that("serve_dormant routing='hash' returns a router handle and tracks tabs", {
   pushes <- list()
   local_mocked_bindings(

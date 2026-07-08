@@ -66,6 +66,18 @@ serve_dormant <- function(..., session, input, output, navbar,
     }
   }
 
+  # Create the router before the component servers so that, when the active
+  # tab changes, the router updates the shared route before the newly active
+  # component renders and reads it via useRoute().
+  route <- NULL
+  if (identical(routing, "hash")) {
+    route <- router_server(
+      session, input, navbar,
+      tabs = names(components),
+      default = names(components)[[1]]
+    )
+  }
+
   current_tab <- shiny::reactive({
     input[[navbar]]
   })
@@ -79,15 +91,6 @@ serve_dormant <- function(..., session, input, output, navbar,
       })
       serve(cmp, input, output, session, is_active = active)
     })
-  }
-
-  route <- NULL
-  if (identical(routing, "hash")) {
-    route <- router_server(
-      session, input, navbar,
-      tabs = names(components),
-      default = names(components)[[1]]
-    )
   }
 
   warned_tabs <- new.env(parent = emptyenv())

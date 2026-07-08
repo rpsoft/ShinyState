@@ -153,10 +153,35 @@ router_server <- function(session, input, navbar, tabs = NULL, default = NULL, h
     push_hash(session, h, mode)
   })
 
-  invisible(list(
+  handle <- list(
     page = shiny::reactive(route_rv()$page),
     parts = shiny::reactive(route_rv()$parts)
-  ))
+  )
+  session$userData$shinystate_route <- handle
+  invisible(handle)
+}
+
+#' Access the active route inside a component
+#'
+#' Returns the router handle for the current app from any component `render()`
+#' function, so a component can read the current page without it being threaded
+#' through props. Requires routing to be enabled (e.g.
+#' `serve_dormant(routing = "hash")` or a [router_server()] call).
+#'
+#' @return A list with reactives `page` and `parts` (see [router_server()]), or
+#'   `NULL` with a warning if no router is active.
+#' @export
+useRoute <- function() {
+  ctx <- get_hook_context()
+  if (is.null(ctx) || !isTRUE(ctx$in_render)) {
+    rlang::abort("`useRoute()` must be called inside a component `render()` function.")
+  }
+  session <- ctx$session
+  handle <- if (!is.null(session)) session$userData$shinystate_route else NULL
+  if (is.null(handle)) {
+    rlang::warn("useRoute(): no active router; enable routing with serve_dormant(routing = \"hash\").")
+  }
+  handle
 }
 
 #' Link to a routed page

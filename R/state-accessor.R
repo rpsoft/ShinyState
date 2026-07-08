@@ -8,10 +8,12 @@
 NULL
 
 #' @keywords internal
-make_state_accessor <- function(store, schedule_rerender) {
+make_state_accessor <- function(store, schedule_rerender, computed = NULL) {
   env <- new.env(parent = emptyenv())
   env$.store <- store
   env$.schedule <- schedule_rerender
+  env$.computed <- computed
+  env$.computed_cache <- new.env(parent = emptyenv())
 
   env$set <- function(...) {
     args <- list(...)
@@ -43,10 +45,31 @@ make_state_accessor <- function(store, schedule_rerender) {
   structure(env, class = "shinystate_state")
 }
 
+#' @keywords internal
+resolve_computed <- function(x, name) {
+  cache <- x$.computed_cache
+  ver <- state_store_version(x$.store)
+  hit <- if (exists(name, envir = cache, inherits = FALSE)) {
+    get(name, envir = cache, inherits = FALSE)
+  } else {
+    NULL
+  }
+  if (!is.null(hit) && identical(hit$ver, ver)) {
+    return(hit$value)
+  }
+  value <- x$.computed[[name]](x)
+  assign(name, list(ver = ver, value = value), envir = cache)
+  value
+}
+
 #' @export
 `$.shinystate_state` <- function(x, name) {
   if (exists(name, envir = x, inherits = FALSE)) {
     return(get(name, envir = x, inherits = FALSE))
+  }
+  computed <- x$.computed
+  if (!is.null(computed) && name %in% names(computed)) {
+    return(resolve_computed(x, name))
   }
   state_get(x$.store, name)
 }

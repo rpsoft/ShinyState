@@ -159,6 +159,96 @@ useCallback <- function(input_id, fn) {
   invisible(NULL)
 }
 
+#' Lifecycle hooks
+#'
+#' Register callbacks tied to a component's lifecycle. Call these inside a
+#' component `render()` function. Handlers receive the state accessor.
+#'
+#' * `onMounted()` runs once, after the component first renders.
+#' * `onUnmounted()` runs when the session ends (after effect cleanups).
+#' * `onActivated()` / `onDeactivated()` run when a dormant tab becomes visible
+#'   or hidden (see [serve_dormant()]). They never fire for always-on
+#'   components served with [serve()].
+#'
+#' @param fn Handler function; receives the state accessor.
+#' @return Invisibly `NULL`.
+#' @name lifecycle-hooks
+NULL
+
+#' @rdname lifecycle-hooks
+#' @export
+onMounted <- function(fn) {
+  if (!is.function(fn)) {
+    rlang::abort("`onMounted()` requires a function.")
+  }
+  useEffect(fn, deps = NULL)
+}
+
+#' @rdname lifecycle-hooks
+#' @export
+onUnmounted <- function(fn) {
+  ctx <- get_hook_context()
+  if (is.null(ctx) || !isTRUE(ctx$in_render)) {
+    rlang::abort("`onUnmounted()` must be called inside a component `render()` function.")
+  }
+  ctx$unmounted_handlers <- c(ctx$unmounted_handlers, list(fn))
+  invisible(NULL)
+}
+
+#' @rdname lifecycle-hooks
+#' @export
+onActivated <- function(fn) {
+  ctx <- get_hook_context()
+  if (is.null(ctx) || !isTRUE(ctx$in_render)) {
+    rlang::abort("`onActivated()` must be called inside a component `render()` function.")
+  }
+  ctx$activated_handlers <- c(ctx$activated_handlers, list(fn))
+  invisible(NULL)
+}
+
+#' @rdname lifecycle-hooks
+#' @export
+onDeactivated <- function(fn) {
+  ctx <- get_hook_context()
+  if (is.null(ctx) || !isTRUE(ctx$in_render)) {
+    rlang::abort("`onDeactivated()` must be called inside a component `render()` function.")
+  }
+  ctx$deactivated_handlers <- c(ctx$deactivated_handlers, list(fn))
+  invisible(NULL)
+}
+
+#' Watch state fields for changes
+#'
+#' Runs `fn(new_values, old_values)` whenever any of the watched state `fields`
+#' change. Both arguments are named lists keyed by `fields`. Call inside a
+#' component `render()` function. Sugar over [useEffect()] that also gives you
+#' the previous values.
+#'
+#' @param fields Character vector of state field names to watch.
+#' @param fn Function `(new_values, old_values)` run when a watched field
+#'   changes.
+#' @param immediate If `TRUE`, also run once on first render (with `old_values`
+#'   all `NULL`).
+#' @return Invisibly `NULL`.
+#' @export
+watch <- function(fields, fn, immediate = FALSE) {
+  ctx <- get_hook_context()
+  if (is.null(ctx) || !isTRUE(ctx$in_render)) {
+    rlang::abort("`watch()` must be called inside a component `render()` function.")
+  }
+  if (!is.character(fields) || length(fields) == 0L) {
+    rlang::abort("`watch()` requires a non-empty character vector of field names.")
+  }
+  if (!is.function(fn)) {
+    rlang::abort("`watch()` requires a function `(new, old)`.")
+  }
+  ctx$hook_effect_index <- ctx$hook_effect_index + 1L
+  ctx$effect_specs[[paste0("watch_", ctx$hook_effect_index)]] <- list(
+    fn = fn, deps = fields, watch = TRUE, immediate = isTRUE(immediate)
+  )
+  invisible(NULL)
+}
+
 #' Declarative effect specification for [component()]
 #'
 #' @param deps Character vector of state field names to watch, or `NULL` to run
@@ -231,11 +321,12 @@ run_effects <- function(ctx, state_accessor, is_first_run = FALSE) {
 
   for (key in keys) {
     spec <- specs[[key]]
+    is_watch <- isTRUE(spec$watch)
     current_deps <- resolve_dep_values(ctx$state_store, spec$deps)
     prev_deps <- ctx$prev_effect_deps[[key]]
 
     should_run <- if (is_first_run) {
-      TRUE
+      if (is_watch) isTRUE(spec$immediate) else TRUE
     } else if (is.null(spec$deps)) {
       FALSE
     } else {
@@ -243,6 +334,19 @@ run_effects <- function(ctx, state_accessor, is_first_run = FALSE) {
     }
 
     if (!should_run) {
+      ctx$prev_effect_deps[[key]] <- current_deps
+      next
+    }
+
+    if (is_watch) {
+      new_values <- unclass(current_deps)
+      old_values <- if (is.null(prev_deps)) {
+        stats::setNames(vector("list", length(spec$deps)), spec$deps)
+      } else {
+        unclass(prev_deps)
+      }
+      spec$fn(new_values, old_values)
+      ctx$prev_effect_deps[[key]] <- current_deps
       next
     }
 

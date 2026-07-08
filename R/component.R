@@ -46,9 +46,18 @@
 #'   server = function(input, output, session) serve(counter, input, output, session)
 #' )
 #' }
-component <- function(id, ..., render) {
+component <- function(id, ..., render, computed = list()) {
   if (missing(render) || !is.function(render)) {
     rlang::abort("`component()` requires a `render` function.")
+  }
+  if (!is.list(computed) || (length(computed) > 0L &&
+      (is.null(names(computed)) || any(!nzchar(names(computed)))))) {
+    rlang::abort("`computed` must be a named list of functions.")
+  }
+  for (fn in computed) {
+    if (!is.function(fn)) {
+      rlang::abort("Each `computed` entry must be a function of `state`.")
+    }
   }
 
   dots <- list(...)
@@ -79,9 +88,10 @@ component <- function(id, ..., render) {
       id = id,
       initial_state = initial_state,
       effect_specs = effect_specs,
+      computed = computed,
       render_fn = render,
       ui = componentUI(id),
-      server = componentServer(id, initial_state, effect_specs, render)
+      server = componentServer(id, initial_state, effect_specs, render, computed)
     ),
     class = c("shinystate_component", "list")
   )
@@ -126,13 +136,14 @@ shinystate_dependency <- function() {
 #' effects, or event handling) while its state is preserved. It is supplied
 #' automatically by [serve()] and [serve_dormant()].
 #' @export
-componentServer <- function(id, initial_state = list(), effect_specs = list(), render_fn) {
+componentServer <- function(id, initial_state = list(), effect_specs = list(), render_fn, computed = list()) {
   force(id)
   force(initial_state)
   force(effect_specs)
   force(render_fn)
+  force(computed)
 
-  function(input, output, session, is_active = NULL) {
+  function(input, output, session, is_active = NULL, props = NULL) {
     ns <- session$ns
     store <- new_state_store(initial_state)
     version <- shiny::reactiveVal(0L)
@@ -158,21 +169,38 @@ componentServer <- function(id, initial_state = list(), effect_specs = list(), r
     ctx <- new_hook_context(id, store, schedule_rerender, ns = ns, input = input)
     ctx$session <- session
     ctx$dormant <- !is.null(is_active)
-    state_accessor <- make_state_accessor(store, schedule_rerender)
+    state_accessor <- make_state_accessor(store, schedule_rerender, computed)
+
+    if (!is.null(props)) {
+      shiny::observe({
+        values <- props()
+        if (is.list(values) && length(values) > 0L) {
+          do.call(state_set, c(list(store = store), values))
+          schedule_rerender()
+        }
+      })
+    }
 
     if (!is.null(is_active)) {
       shiny::observe({
         if (is_component_active()) {
           if (isTRUE(ctx$dormant)) {
             ctx$dormant <- FALSE
+            ctx$.pending_activated <- TRUE
             version(version() + 1L)
           }
         } else if (!isTRUE(ctx$dormant)) {
           ctx$dormant <- TRUE
+          run_lifecycle_handlers(ctx$deactivated_handlers, state_accessor)
           run_effect_cleanups(ctx)
         }
       })
     }
+
+    session$onSessionEnded(function() {
+      run_effect_cleanups(ctx)
+      run_lifecycle_handlers(ctx$unmounted_handlers, state_accessor)
+    })
 
     shiny::observeEvent(
       input$`.shinystate_event`,
@@ -203,6 +231,10 @@ componentServer <- function(id, initial_state = list(), effect_specs = list(), r
       reset_hook_index(ctx)
       ctx$in_render <- TRUE
       ctx$effect_specs <- list()
+      ctx$activated_handlers <- list()
+      ctx$deactivated_handlers <- list()
+      ctx$unmounted_handlers <- list()
+      ctx$pending_children <- list()
 
       on.exit({
         ctx$in_render <- FALSE
@@ -237,6 +269,11 @@ componentServer <- function(id, initial_state = list(), effect_specs = list(), r
             is_first <- is.null(ctx$.has_rendered)
             ctx$.has_rendered <- TRUE
             run_effects(ctx, state_accessor, is_first_run = is_first)
+            serve_pending_children(ctx, output, session, active_reactive)
+            if (isTRUE(ctx$.pending_activated)) {
+              ctx$.pending_activated <- NULL
+              run_lifecycle_handlers(ctx$activated_handlers, state_accessor)
+            }
             result
           },
           error = function(e) {
@@ -251,6 +288,29 @@ componentServer <- function(id, initial_state = list(), effect_specs = list(), r
     })
 
   }
+}
+
+#' @keywords internal
+serve_pending_children <- function(ctx, output, session, active_reactive) {
+  # Child components are wired here; see mount() registration.
+  invisible(NULL)
+}
+
+#' @keywords internal
+run_lifecycle_handlers <- function(handlers, state_accessor) {
+  if (is.null(handlers)) {
+    return(invisible(NULL))
+  }
+  for (fn in handlers) {
+    if (is.function(fn)) {
+      if (length(formals(fn)) > 0L) {
+        fn(state_accessor)
+      } else {
+        fn()
+      }
+    }
+  }
+  invisible(NULL)
 }
 
 #' Mount a component in a Shiny UI

@@ -6,11 +6,17 @@
 \alias{componentServer}
 \title{Define a Shiny Component}
 \usage{
-component(id, ..., render)
+component(id, ..., render, computed = list())
 
 componentUI(id)
 
-componentServer(id, initial_state = list(), effect_specs = list(), render_fn)
+componentServer(
+  id,
+  initial_state = list(),
+  effect_specs = list(),
+  render_fn,
+  computed = list()
+)
 }
 \arguments{
 \item{id}{Component / module id.}
