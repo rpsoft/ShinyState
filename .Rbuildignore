@@ -11,5 +11,6 @@
 ^\.Rcheck$
 ^\.gitignore$
 ^\.github$
+^\.claude$
 ^inst/tutorial/shinystate-tutorial\.html$
 ^LICENSE\.md$

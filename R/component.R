@@ -13,6 +13,9 @@
 #'   Receives a [shinystate_state] accessor when declarative `useState()` is
 #'   provided, otherwise call `useState()` inside the function. A second
 #'   argument `ns` provides the namespace function.
+#' @param computed Named list of functions `function(state)` exposing derived
+#'   values as `state$name`. Each is cached and recomputed only when state
+#'   changes.
 #'
 #' @return A list with `ui` and `server` functions suitable for
 #'   [shiny::moduleServer()], or use [componentUI()] / [componentServer()] helpers.

@@ -30,6 +30,10 @@ Receives a \link{shinystate_state} accessor when declarative \code{useState()} i
 provided, otherwise call \code{useState()} inside the function. A second
 argument \code{ns} provides the namespace function.}
 
+\item{computed}{Named list of functions \verb{function(state)} exposing derived
+values as \code{state$name}. Each is cached and recomputed only when state
+changes.}
+
 \item{initial_state}{Named list of initial state values.}
 
 \item{effect_specs}{List of effect specifications from \code{\link[=useEffect]{useEffect()}}.}
