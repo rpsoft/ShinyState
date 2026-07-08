@@ -81,24 +81,13 @@ reducer_component <- component(
   }
 )
 
-shinyApp(
-  ui = navbarPage(
-    "ShinyState Multipage Example",
-    id = "pages",
-    tabPanel("Dashboard", mount(counter_component), value = "dashboard"),
-    tabPanel("Search", mount(filter_component), value = "search"),
-    tabPanel("Reducer", mount(reducer_component), value = "reducer")
-  ),
-  server = function(input, output, session) {
-    # routing = "hash" makes tabs bookmarkable (#!/dashboard, #!/search, ...)
-    # and wires the browser back/forward buttons to tab navigation.
-    serve_dormant(
-      session = session, input = input, output = output,
-      navbar = "pages",
-      routing = "hash",
-      dashboard = counter_component,
-      search = filter_component,
-      reducer = reducer_component
-    )
-  }
+# One call builds the whole multi-page app: a navbar with one tab per
+# component, the dormant lifecycle, and #!/page URL routing (bookmarkable
+# tabs, working browser back/forward). Component names become page ids.
+shinyStateApp(
+  title = "ShinyState Multipage Example",
+  routing = "hash",
+  dashboard = counter_component,
+  search = filter_component,
+  reducer = reducer_component
 )
