@@ -292,7 +292,45 @@ componentServer <- function(id, initial_state = list(), effect_specs = list(), r
 
 #' @keywords internal
 serve_pending_children <- function(ctx, output, session, active_reactive) {
-  # Child components are wired here; see mount() registration.
+  pending <- ctx$pending_children
+  if (is.null(pending) || length(pending) == 0L) {
+    return(invisible(NULL))
+  }
+  if (is.null(ctx$children_registry)) {
+    ctx$children_registry <- new.env(parent = emptyenv())
+  }
+  reg <- ctx$children_registry
+
+  for (child_id in names(pending)) {
+    entry <- pending[[child_id]]
+    child <- entry$component
+    props <- entry$props %||% list()
+
+    if (exists(child_id, envir = reg, inherits = FALSE)) {
+      rec <- get(child_id, envir = reg, inherits = FALSE)
+      if (!identical(rec$last_props, props)) {
+        rec$props_rv(props)
+        rec$last_props <- props
+        assign(child_id, rec, envir = reg)
+      }
+      next
+    }
+
+    props_rv <- shiny::reactiveVal(props)
+    local({
+      ch <- child
+      prv <- props_rv
+      act <- active_reactive
+      shiny::moduleServer(
+        ch$id,
+        function(input, output, session) {
+          ch$server(input, output, session, is_active = act, props = prv)
+        },
+        session = session
+      )
+    })
+    assign(child_id, list(props_rv = props_rv, last_props = props), envir = reg)
+  }
   invisible(NULL)
 }
 
@@ -315,11 +353,35 @@ run_lifecycle_handlers <- function(handlers, state_accessor) {
 
 #' Mount a component in a Shiny UI
 #'
+#' Place a component's UI in a page, or — when called inside another
+#' component's `render()` — nest it as a **child component** and pass it
+#' `props`. A child's server is started once; when the parent re-renders with
+#' different `props`, the child receives the new values (as state fields) and
+#' re-renders. Props are owned by the parent: a child should read them
+#' (`state$propname`) but not overwrite them with `state$set()`.
+#'
 #' @param component A component list returned by [component()].
-#' @param ... Passed to the component UI function.
+#' @param props Named list of values to pass to a nested child component. Each
+#'   name becomes a state field the child can read. Only used when `mount()` is
+#'   called inside a parent's `render()`.
+#' @param ... Passed to the component UI function (top-level mounting only).
 #'
 #' @export
-mount <- function(component, ...) {
+mount <- function(component, props = list(), ...) {
+  ctx <- get_hook_context()
+  if (!is.null(ctx) && isTRUE(ctx$in_render)) {
+    if (is.null(ctx$pending_children)) {
+      ctx$pending_children <- list()
+    }
+    ctx$pending_children[[component$id]] <- list(component = component, props = props)
+    return(htmltools::tagList(
+      shinystate_dependency(),
+      shiny::div(
+        id = ctx$ns(paste0(component$id, "-ui")),
+        class = "shinystate-output"
+      )
+    ))
+  }
   component$ui(...)
 }
 
