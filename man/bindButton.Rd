@@ -2,22 +2,26 @@
 % Please edit documentation in R/bind-button.R
 \name{bindButton}
 \alias{bindButton}
-\title{Action button wired to useCallback()}
+\title{Action button wired to a click handler}
 \usage{
-bindButton(ns, input_id, label, ...)
+bindButton(input_id, label, onClick = NULL, ...)
 }
 \arguments{
-\item{ns}{Namespace function from the component \code{render()} function.}
-
-\item{input_id}{Callback id passed to \code{\link[=useCallback]{useCallback()}}.}
+\item{input_id}{Callback id.}
 
 \item{label}{Button label.}
+
+\item{onClick}{Handler run on click, receiving the state accessor. Equivalent
+to registering \code{\link[=useCallback]{useCallback()}} with the same \code{input_id}. Optional — omit it
+to wire the handler separately with \code{\link[=useCallback]{useCallback()}}.}
 
 \item{...}{Passed to \code{\link[shiny:actionButton]{shiny::actionButton()}}.}
 }
 \description{
 Creates an \code{\link[shiny:actionButton]{shiny::actionButton()}} that dispatches through ShinyState's
-internal event channel. Use this instead of \code{\link[shiny:actionButton]{shiny::actionButton()}} inside
-component \code{render()} functions — plain action buttons are reset when
-\code{\link[shiny:renderUI]{shiny::renderUI()}} re-renders, which can fire handlers twice.
+internal event channel. Call it inside a component \code{render()} function — the
+namespace is taken from the render context, so no \code{ns} argument is needed.
+Pass \code{onClick} to register the click handler inline; it receives the state
+accessor. Use this instead of \code{\link[shiny:actionButton]{shiny::actionButton()}} — plain action buttons
+are reset when the DOM re-renders, which can fire handlers twice.
 }

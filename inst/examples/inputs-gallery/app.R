@@ -22,20 +22,8 @@ inputs_gallery <- component(
       message("Title changed: ", state$title)
     }
   ),
-  render = function(state, ns) {
-    useInput("title")
-    useInput("notes")
-    useInput("sample_size")
-    useInput("active")
-    useInput("notifications")
-    useInput("species")
-    useInput("colors")
-    useInput("region")
-    useInput("regions")
-    useInput("volume")
-    useInput("start_date", transform = function(x) as.Date(x))
-
-    useCallback("reset_form", function(s) {
+  render = function(state) {
+    reset_form <- function(s) {
       s$set(
         title = "Project Atlas",
         notes = "Describe your study here...",
@@ -49,7 +37,7 @@ inputs_gallery <- component(
         volume = 40,
         start_date = Sys.Date()
       )
-    })
+    }
 
     summary_text <- useMemo(
       function() {
@@ -76,39 +64,35 @@ inputs_gallery <- component(
         column(
           width = 6,
           h3("Interactive controls"),
-          bindTextInput(ns, "title", "Title", state$title, placeholder = "Enter a title", update = "input"),
-          bindTextArea(ns, "notes", "Long text / notes", state$notes, rows = 4, width = "100%", update = "input"),
-          bindNumericInput(ns, "sample_size", "Numeric input", state$sample_size, min = 1, max = 500, step = 1, update = "blur"),
-          bindSwitch(ns, "active", "Toggle / switch", state$active),
-          bindCheckbox(ns, "notifications", "Checkbox", state$notifications),
+          bindTextInput("title", "Title", placeholder = "Enter a title"),
+          bindTextArea("notes", "Long text / notes", rows = 4, width = "100%"),
+          bindNumericInput("sample_size", "Numeric input", min = 1, max = 500, step = 1, update = "blur"),
+          bindSwitch("active", "Toggle / switch"),
+          bindCheckbox("notifications", "Checkbox"),
           bindRadioButtons(
-            ns, "species", "Radio buttons",
+            "species", "Radio buttons",
             choices = c(Cat = "cat", Dog = "dog", Bird = "bird"),
-            selected = state$species,
             inline = TRUE
           ),
           bindCheckboxGroup(
-            ns, "colors", "Checkbox group",
-            choices = c(Red = "red", Green = "green", Blue = "blue", Yellow = "yellow"),
-            selected = state$colors
+            "colors", "Checkbox group",
+            choices = c(Red = "red", Green = "green", Blue = "blue", Yellow = "yellow")
           ),
           bindSelect(
-            ns, "region", "Dropdown / select",
+            "region", "Dropdown / select",
             choices = c("North America" = "na", "Europe" = "emea", "Asia Pacific" = "apac"),
-            selected = state$region,
             width = "100%"
           ),
           bindSelect(
-            ns, "regions", "Multi-select",
+            "regions", "Multi-select",
             choices = c("North America" = "na", "Europe" = "emea", "Asia Pacific" = "apac", "LATAM" = "latam"),
-            selected = state$regions,
             multiple = TRUE,
             width = "100%"
           ),
-          bindSlider(ns, "volume", "Slider", min = 0, max = 100, value = state$volume, step = 5),
-          bindDateInput(ns, "start_date", "Date input", state$start_date),
+          bindSlider("volume", "Slider", min = 0, max = 100, step = 5),
+          bindDateInput("start_date", "Date input"),
           hr(),
-          bindButton(ns, "reset_form", "Reset form")
+          bindButton("reset_form", "Reset form", onClick = reset_form)
         ),
         column(
           width = 6,

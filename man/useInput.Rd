@@ -15,6 +15,7 @@ useInput(input_id, state_field = input_id, transform = NULL)
 is updated.}
 }
 \description{
-Pair with the \verb{bind*()} input helpers. The handler receives the parsed event
-\code{value} as its second argument.
+The \verb{bind*()} helpers already register this automatically. Use \code{useInput()}
+directly only for advanced cases — e.g. wiring a raw input id to a state
+field with a custom transform without a bound helper.
 }

@@ -11,84 +11,113 @@
 \alias{bindSelect}
 \alias{bindSlider}
 \alias{bindDateInput}
-\title{Bound text input}
+\title{Bound inputs}
 \usage{
 bindTextInput(
-  ns,
   input_id,
-  label,
-  value,
+  label = NULL,
+  value = NULL,
   placeholder = NULL,
   width = NULL,
-  update = c("blur", "input"),
-  debounce_ms = NULL
+  update = c("input", "blur"),
+  state_field = input_id,
+  transform = NULL
 )
 
 bindTextArea(
-  ns,
   input_id,
-  label,
-  value,
+  label = NULL,
+  value = NULL,
   rows = 3L,
   placeholder = NULL,
   width = NULL,
-  update = c("blur", "input"),
-  debounce_ms = NULL
+  update = c("input", "blur"),
+  state_field = input_id,
+  transform = NULL
 )
 
 bindNumericInput(
-  ns,
   input_id,
-  label,
-  value,
+  label = NULL,
+  value = NULL,
   min = NA,
   max = NA,
   step = NA,
   width = NULL,
-  update = c("blur", "input"),
-  debounce_ms = NULL
+  update = c("input", "blur"),
+  state_field = input_id,
+  transform = NULL
 )
 
-bindCheckbox(ns, input_id, label, value = FALSE)
+bindCheckbox(input_id, label = NULL, value = NULL, state_field = input_id)
 
-bindSwitch(ns, input_id, label, value = FALSE)
+bindSwitch(input_id, label = NULL, value = NULL, state_field = input_id)
 
-bindRadioButtons(ns, input_id, label, choices, selected, inline = FALSE)
+bindRadioButtons(
+  input_id,
+  label = NULL,
+  choices,
+  selected = NULL,
+  inline = FALSE,
+  state_field = input_id
+)
 
-bindCheckboxGroup(ns, input_id, label, choices, selected = character())
+bindCheckboxGroup(
+  input_id,
+  label = NULL,
+  choices,
+  selected = NULL,
+  state_field = input_id
+)
 
 bindSelect(
-  ns,
   input_id,
-  label,
+  label = NULL,
   choices,
-  selected,
+  selected = NULL,
   multiple = FALSE,
-  width = NULL
+  width = NULL,
+  state_field = input_id
 )
 
-bindSlider(ns, input_id, label, min, max, value, step = 1)
+bindSlider(
+  input_id,
+  label = NULL,
+  min,
+  max,
+  value = NULL,
+  step = 1,
+  state_field = input_id
+)
 
-bindDateInput(ns, input_id, label, value, min = NULL, max = NULL)
+bindDateInput(
+  input_id,
+  label = NULL,
+  value = NULL,
+  min = NULL,
+  max = NULL,
+  state_field = input_id
+)
 }
 \arguments{
-\item{ns}{Namespace function from \code{render()}.}
+\item{input_id}{Callback / state field id.}
 
-\item{input_id}{Callback/state field id.}
+\item{label}{Field label, or \code{NULL} for none.}
 
-\item{label}{Field label.}
-
-\item{value}{Current value from component state.}
+\item{value}{Current value. Defaults to the value of \code{state_field} in
+component state.}
 
 \item{placeholder}{Optional placeholder text.}
 
 \item{width}{Optional CSS width (e.g. \code{"100\%"}).}
 
-\item{update}{When to sync state: \code{"blur"} (default) or \code{"input"} (live updates).
-With \code{update = "input"}, non-typing UI live-updates automatically while typing.}
+\item{update}{When to sync state: \code{"input"} (live, default) or \code{"blur"}.}
 
-\item{debounce_ms}{Deprecated; ignored. Supplying a value raises a one-time
-warning.}
+\item{state_field}{State field this input reads and writes. Defaults to
+\code{input_id}.}
+
+\item{transform}{Optional function applied to the incoming value before it is
+written to state.}
 
 \item{rows}{Number of rows.}
 
@@ -97,26 +126,20 @@ warning.}
 
 \item{choices}{Named vector of choices.}
 
-\item{selected}{Currently selected value.}
+\item{selected}{Currently selected value. Defaults to the value of
+\code{state_field} in component state.}
 
 \item{inline}{Display options inline.}
 
 \item{multiple}{Allow multiple selections.}
 }
+\value{
+A UI tag to include in a component's rendered output.
+}
 \description{
-Bound text input
-
-Bound numeric input
-
-Bound checkbox / toggle
-
-Bound radio buttons
-
-Bound checkbox group
-
-Bound select input
-
-Bound slider
-
-Bound date input
+Bound inputs are called \strong{inside} a component \code{render()} function. They read
+their current value from component state, wire changes back into state
+automatically (no separate \code{\link[=useInput]{useInput()}} needed), and are safe across
+re-renders. The namespace is taken from the active render context, so no \code{ns}
+argument is required.
 }

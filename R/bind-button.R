@@ -1,17 +1,29 @@
-#' Action button wired to useCallback()
+#' Action button wired to a click handler
 #'
 #' Creates an [shiny::actionButton()] that dispatches through ShinyState's
-#' internal event channel. Use this instead of [shiny::actionButton()] inside
-#' component `render()` functions — plain action buttons are reset when
-#' [shiny::renderUI()] re-renders, which can fire handlers twice.
+#' internal event channel. Call it inside a component `render()` function — the
+#' namespace is taken from the render context, so no `ns` argument is needed.
+#' Pass `onClick` to register the click handler inline; it receives the state
+#' accessor. Use this instead of [shiny::actionButton()] — plain action buttons
+#' are reset when the DOM re-renders, which can fire handlers twice.
 #'
-#' @param ns Namespace function from the component `render()` function.
-#' @param input_id Callback id passed to [useCallback()].
+#' @param input_id Callback id.
 #' @param label Button label.
+#' @param onClick Handler run on click, receiving the state accessor. Equivalent
+#'   to registering [useCallback()] with the same `input_id`. Optional — omit it
+#'   to wire the handler separately with [useCallback()].
 #' @param ... Passed to [shiny::actionButton()].
 #'
 #' @export
-bindButton <- function(ns, input_id, label, ...) {
+bindButton <- function(input_id, label, onClick = NULL, ...) {
+  ctx <- require_render_ctx("bindButton")
+  ns <- ctx$ns
+  if (!is.null(onClick)) {
+    if (!is.function(onClick)) {
+      rlang::abort("`onClick` must be a function.")
+    }
+    ctx$callback_handlers[[input_id]] <- onClick
+  }
   shiny::actionButton(
     ns(input_id),
     label,

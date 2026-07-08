@@ -58,39 +58,37 @@ controls_component <- component(
       unsubscribe
     }
   ),
-  render = function(state, ns) {
-    useCallback("inc", function(s) {
+  render = function(state) {
+    inc <- function(s) {
       current <- shared_store$get()
       next_count <- current$count + 1L
       shared_store$set(
         count = next_count,
         history = c(current$history, paste("Incremented to", next_count))
       )
-    })
-
-    useCallback("dec", function(s) {
+    }
+    dec <- function(s) {
       current <- shared_store$get()
       next_count <- current$count - 1L
       shared_store$set(
         count = next_count,
         history = c(current$history, paste("Decremented to", next_count))
       )
-    })
-
-    useCallback("reset", function(s) {
+    }
+    reset <- function(s) {
       current <- shared_store$get()
       shared_store$set(
         count = 0L,
         history = c(current$history, "Reset to 0")
       )
-    })
+    }
 
     tagList(
       h3("Controls Component"),
       p(paste("Shared count:", state$count)),
-      bindButton(ns, "dec", "−"),
-      bindButton(ns, "inc", "+"),
-      bindButton(ns, "reset", "Reset")
+      bindButton("dec", "−", onClick = dec),
+      bindButton("inc", "+", onClick = inc),
+      bindButton("reset", "Reset", onClick = reset)
     )
   }
 )

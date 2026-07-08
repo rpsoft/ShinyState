@@ -10,20 +10,16 @@ counter_component <- component(
       message("Counter changed to: ", state$count)
     }
   ),
-  render = function(state, ns) {
-    useCallback("inc", function(s) s$set(count = s$count + 1L))
-    useCallback("dec", function(s) s$set(count = s$count - 1L))
-    useCallback("reset", function(s) s$set(count = 0L))
-
+  render = function(state) {
     doubled <- useMemo(function() state$count * 2L, deps = "count")
 
     tagList(
       h3("Counter Component"),
       p(paste("Count:", state$count)),
       p(paste("Doubled:", doubled)),
-      bindButton(ns, "dec", "−"),
-      bindButton(ns, "inc", "+"),
-      bindButton(ns, "reset", "Reset"),
+      bindButton("dec", "−", onClick = function(s) s$set(count = s$count - 1L)),
+      bindButton("inc", "+", onClick = function(s) s$set(count = s$count + 1L)),
+      bindButton("reset", "Reset", onClick = function(s) s$set(count = 0L)),
       p(route_link("search", "Go to search →"))
     )
   }
@@ -38,13 +34,7 @@ filter_component <- component(
       state$set(page = 1L)
     }
   ),
-  render = function(state, ns) {
-    useCallback("filter_a", function(s) s$set(query = "a"))
-    useCallback("filter_e", function(s) s$set(query = "e"))
-    useCallback("filter_all", function(s) s$set(query = ""))
-    useCallback("next_page", function(s) s$set(page = s$page + 1L))
-    useCallback("prev_page", function(s) s$set(page = max(1L, s$page - 1L)))
-
+  render = function(state) {
     items <- c("Alfa", "Bravo", "Charlie", "Delta", "Echo", "Foxtrot")
     filtered <- items[grepl(state$query, items, ignore.case = TRUE)]
     page_size <- 2L
@@ -55,20 +45,20 @@ filter_component <- component(
     tagList(
       h3("Search + Pagination Component"),
       p(paste("Current filter:", if (nzchar(state$query)) state$query else "(all)")),
-      bindButton(ns, "filter_a", "Contains 'a'"),
-      bindButton(ns, "filter_e", "Contains 'e'"),
-      bindButton(ns, "filter_all", "Show all"),
+      bindButton("filter_a", "Contains 'a'", onClick = function(s) s$set(query = "a")),
+      bindButton("filter_e", "Contains 'e'", onClick = function(s) s$set(query = "e")),
+      bindButton("filter_all", "Show all", onClick = function(s) s$set(query = "")),
       p(paste("Current page:", state$page)),
       if (length(current) == 0L) p("No matches.") else tags$ul(lapply(current, tags$li)),
-      bindButton(ns, "prev_page", "Previous"),
-      bindButton(ns, "next_page", "Next")
+      bindButton("prev_page", "Previous", onClick = function(s) s$set(page = max(1L, s$page - 1L))),
+      bindButton("next_page", "Next", onClick = function(s) s$set(page = s$page + 1L))
     )
   }
 )
 
 reducer_component <- component(
   id = "reducer",
-  render = function(state, ns) {
+  render = function(state) {
     reducer <- useReducer(
       function(prev, action) {
         switch(
@@ -81,15 +71,12 @@ reducer_component <- component(
       initial = character()
     )
 
-    useCallback("add", function() reducer$dispatch("add"))
-    useCallback("drop", function() reducer$dispatch("drop"))
-
     tagList(
       h3("Reducer Component"),
       p(paste("Items:", length(reducer$state))),
       if (length(reducer$state) == 0L) p("No items yet.") else tags$ul(lapply(reducer$state, tags$li)),
-      bindButton(ns, "add", "Add item"),
-      bindButton(ns, "drop", "Remove last")
+      bindButton("add", "Add item", onClick = function(s) reducer$dispatch("add")),
+      bindButton("drop", "Remove last", onClick = function(s) reducer$dispatch("drop"))
     )
   }
 )

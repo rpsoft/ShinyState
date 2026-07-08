@@ -35,25 +35,18 @@ test_that("inputs gallery example sources without error", {
   expect_no_error(source(path, local = TRUE))
 })
 
-test_that("bindTextInput warns once that debounce_ms is deprecated but still renders", {
-  ns <- shiny::NS("form")
-  expect_warning(
-    tag <- bindTextInput(ns, "title", "Title", "Hello", update = "input", debounce_ms = 200),
-    "deprecated"
-  )
-  html <- as.character(tag)
-  expect_match(html, "form-title")
-  expect_match(html, "shinystate_editing")
+test_that("bind helpers abort when called outside a render context", {
+  expect_error(bindTextInput("title", "Title"), "render")
+  expect_error(bindButton("go", "Go"), "render")
 })
 
-test_that("text input updates on blur without double increment", {
+test_that("bound text input auto-binds and updates on blur", {
   cmp <- component(
     id = "form",
     state = useState(title = "A"),
-    render = function(state, ns) {
-      useInput("title")
+    render = function(state) {
       tagList(
-        bindTextInput(ns, "title", "Title", state$title, update = "blur"),
+        bindTextInput("title", "Title", update = "blur"),
         shiny::p(state$title, class = "title-preview")
       )
     }
@@ -63,6 +56,8 @@ test_that("text input updates on blur without double increment", {
     cmp$server,
     {
       session$flushReact()
+      html <- htmltools::renderTags(output$ui)$html
+      expect_match(html, 'value="A"')
       session$setInputs(".shinystate_event" = list(id = "title", t = 1, value = "ABC"))
       session$flushReact()
       html <- htmltools::renderTags(output$ui)$html
@@ -71,19 +66,17 @@ test_that("text input updates on blur without double increment", {
   )
 })
 
-test_that("live text edits re-render output$ui with the new value", {
+test_that("bound inputs read current value from state and re-render on change", {
   cmp <- component(
     id = "form",
     state = useState(title = "A", notes = "B"),
-    render = function(state, ns) {
-      useInput("title")
-      useInput("notes")
+    render = function(state) {
       fluidPage(
         fluidRow(
           column(
             6,
-            bindTextInput(ns, "title", "Title", state$title, update = "input"),
-            bindTextArea(ns, "notes", "Notes", state$notes, update = "input")
+            bindTextInput("title", "Title"),
+            bindTextArea("notes", "Notes")
           ),
           column(
             6,

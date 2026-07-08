@@ -10,17 +10,7 @@ counter <- component(
       message("Count changed to: ", state$count)
     }
   ),
-  render = function(state, ns) {
-    useCallback("inc", function(s) {
-      s$set(count = s$count + 1L)
-    })
-    useCallback("dec", function(s) {
-      s$set(count = s$count - 1L)
-    })
-    useCallback("reset", function(s) {
-      s$set(count = 0L)
-    })
-
+  render = function(state) {
     doubled <- useMemo(
       function() state$count * 2L,
       deps = "count"
@@ -30,9 +20,9 @@ counter <- component(
       h2("ShinyState Counter"),
       h3(paste("Count:", state$count)),
       p(paste("Doubled (useMemo):", doubled)),
-      ShinyState::bindButton(ns, "dec", "−"),
-      ShinyState::bindButton(ns, "inc", "+"),
-      ShinyState::bindButton(ns, "reset", "Reset")
+      bindButton("dec", "−", onClick = function(s) s$set(count = s$count - 1L)),
+      bindButton("inc", "+", onClick = function(s) s$set(count = s$count + 1L)),
+      bindButton("reset", "Reset", onClick = function(s) s$set(count = 0L))
     )
   }
 )
