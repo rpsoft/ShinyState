@@ -47,15 +47,31 @@
   }
 
   function morphNode(from, to) {
-    if (from.isEqualNode(to)) return;
     if (from.nodeType === TEXT || from.nodeType === COMMENT) {
       if (from.nodeValue !== to.nodeValue) from.nodeValue = to.nodeValue;
       return;
     }
     if (from.nodeType === ELEMENT) {
       if (shouldPreserve(from)) return; // leave the focused/opted-out node untouched
+      // No isEqualNode() fast-path: a form control's live value/checked can
+      // diverge from its HTML attributes (e.g. after typing while preserved),
+      // so equal attributes do not mean the control is up to date. We always
+      // recurse; morphAttrs/text compares avoid redundant DOM writes.
       morphAttrs(from, to);
+      var tag = from.tagName;
+      // Attributes alone do not update the *live* value/checked/selected
+      // properties of form controls once they have been interacted with;
+      // sync the properties explicitly (as morphdom does).
+      if (tag === "INPUT") {
+        if (from.checked !== to.checked) from.checked = to.checked;
+        if (from.value !== to.value) from.value = to.value;
+      } else if (tag === "TEXTAREA") {
+        if (from.value !== to.value) from.value = to.value;
+      } else if (tag === "OPTION") {
+        if (from.selected !== to.selected) from.selected = to.selected;
+      }
       morphChildren(from, to);
+      if (tag === "SELECT" && from.value !== to.value) from.value = to.value;
     }
   }
 
