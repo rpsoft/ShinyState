@@ -118,12 +118,17 @@
     window.__shinystate_bound = true;
 
     var binding = new Shiny.OutputBinding();
+    var jq = window.jQuery || window.$;
 
     binding.find = function (scope) {
-      return scope.querySelectorAll(".shinystate-output");
+      // Shiny passes `scope` as a jQuery object; match the built-in bindings.
+      if (jq) return jq(scope).find(".shinystate-output");
+      var root = scope.querySelectorAll ? scope : (scope[0] || document);
+      return root.querySelectorAll(".shinystate-output");
     };
 
     binding.renderValue = function (el, data) {
+      if (el && el.jquery) el = el[0]; // unwrap if handed a jQuery object
       var html = "", deps = [];
       if (typeof data === "string") {
         html = data;
