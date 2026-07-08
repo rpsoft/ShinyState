@@ -383,6 +383,57 @@ test_that("onMounted runs once and onActivated/onDeactivated track dormancy", {
   )
 })
 
+test_that("changing hook order between renders warns once", {
+  cmp <- component(
+    id = "order",
+    state = useState(flip = FALSE, n = 0L),
+    render = function(state) {
+      if (state$flip) {
+        useMemo(function() 1L, deps = character(0))
+      }
+      useCallback("go", function(s) s$set(flip = TRUE))
+      shiny::p(state$n)
+    }
+  )
+
+  shiny::testServer(
+    cmp$server,
+    {
+      session$flushReact()
+      expect_warning(
+        {
+          session$setInputs(".shinystate_event" = list(id = "go", t = 1))
+          session$flushReact()
+        },
+        "different order"
+      )
+    }
+  )
+})
+
+test_that("stable hook order does not warn", {
+  cmp <- component(
+    id = "stable",
+    state = useState(n = 0L),
+    render = function(state) {
+      useMemo(function() state$n * 2L, deps = "n")
+      useCallback("inc", function(s) s$set(n = s$n + 1L))
+      shiny::p(state$n)
+    }
+  )
+
+  shiny::testServer(
+    cmp$server,
+    {
+      session$flushReact()
+      expect_no_warning({
+        session$setInputs(".shinystate_event" = list(id = "inc", t = 1))
+        session$flushReact()
+      })
+    }
+  )
+})
+
 test_that("component returns ui and server", {
   cmp <- component(
     id = "c",

@@ -90,7 +90,7 @@ useStore <- function(store) {
     rlang::abort("`useStore()` must be called inside a component `render()` function.")
   }
 
-  slot <- next_hook_slot(ctx)
+  slot <- next_hook_slot(ctx, "useStore")
   key <- paste0("store_", slot)
   if (is.null(ctx$store_subs)) {
     ctx$store_subs <- list()

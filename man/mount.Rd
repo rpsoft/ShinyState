@@ -4,13 +4,22 @@
 \alias{mount}
 \title{Mount a component in a Shiny UI}
 \usage{
-mount(component, ...)
+mount(component, props = list(), ...)
 }
 \arguments{
 \item{component}{A component list returned by \code{\link[=component]{component()}}.}
 
-\item{...}{Passed to the component UI function.}
+\item{props}{Named list of values to pass to a nested child component. Each
+name becomes a state field the child can read. Only used when \code{mount()} is
+called inside a parent's \code{render()}.}
+
+\item{...}{Passed to the component UI function (top-level mounting only).}
 }
 \description{
-Mount a component in a Shiny UI
+Place a component's UI in a page, or — when called inside another
+component's \code{render()} — nest it as a \strong{child component} and pass it
+\code{props}. A child's server is started once; when the parent re-renders with
+different \code{props}, the child receives the new values (as state fields) and
+re-renders. Props are owned by the parent: a child should read them
+(\code{state$propname}) but not overwrite them with \code{state$set()}.
 }

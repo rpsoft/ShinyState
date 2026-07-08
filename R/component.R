@@ -158,11 +158,21 @@ componentServer <- function(id, initial_state = list(), effect_specs = list(), r
       isTRUE(active_reactive())
     }
 
+    # Bump the render counter without registering `version` as a reactive
+    # dependency of the caller. schedule_rerender() is invoked from plain
+    # observers (props, stores) and event handlers alike; an un-isolated
+    # version() read there would make the caller depend on version and
+    # re-fire whenever it bumps, causing an infinite render loop.
+    bump_version <- function() {
+      shiny::isolate(version(version() + 1L))
+    }
+
     schedule_rerender <- function() {
       if (isTRUE(ctx$dormant)) {
         return(invisible(NULL))
       }
-      version(version() + 1L)
+      ss_debug("render scheduled: ", id)
+      bump_version()
       invisible(NULL)
     }
 
@@ -172,24 +182,26 @@ componentServer <- function(id, initial_state = list(), effect_specs = list(), r
     state_accessor <- make_state_accessor(store, schedule_rerender, computed)
 
     if (!is.null(props)) {
-      shiny::observe({
+      shiny::observeEvent(props(), {
         values <- props()
         if (is.list(values) && length(values) > 0L) {
           do.call(state_set, c(list(store = store), values))
           schedule_rerender()
         }
-      })
+      }, ignoreNULL = FALSE)
     }
 
     if (!is.null(is_active)) {
       shiny::observe({
         if (is_component_active()) {
           if (isTRUE(ctx$dormant)) {
+            ss_debug("activated: ", id)
             ctx$dormant <- FALSE
             ctx$.pending_activated <- TRUE
-            version(version() + 1L)
+            bump_version()
           }
         } else if (!isTRUE(ctx$dormant)) {
+          ss_debug("deactivated: ", id)
           ctx$dormant <- TRUE
           run_lifecycle_handlers(ctx$deactivated_handlers, state_accessor)
           run_effect_cleanups(ctx)
@@ -246,7 +258,7 @@ componentServer <- function(id, initial_state = list(), effect_specs = list(), r
       }
 
       nformals <- length(formals(render_fn))
-      with_hook_context(ctx, {
+      result <- with_hook_context(ctx, {
         if (nformals >= 2L) {
           render_fn(state_accessor, ns)
         } else if (nformals >= 1L) {
@@ -255,6 +267,8 @@ componentServer <- function(id, initial_state = list(), effect_specs = list(), r
           render_fn()
         }
       })
+      check_hook_order(ctx)
+      result
     }
 
     output$ui <- shiny::renderUI({

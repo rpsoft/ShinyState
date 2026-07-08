@@ -39,7 +39,7 @@ useState <- function(...) {
 
 #' @keywords internal
 use_state_hook <- function(initial, ctx) {
-  next_hook_slot(ctx)
+  next_hook_slot(ctx, "useState")
   store <- ctx$state_store
 
   missing_fields <- setdiff(names(initial), ls(envir = store, all.names = TRUE))
@@ -60,7 +60,7 @@ useReducer <- function(reducer, initial) {
     rlang::abort("`useReducer()` must be called inside a component `render()` function.")
   }
 
-  slot <- next_hook_slot(ctx)
+  slot <- next_hook_slot(ctx, "useReducer")
   key <- paste0("reducer_", slot)
 
   if (is.null(ctx$reducer_slots)) {
@@ -126,7 +126,7 @@ useMemo <- function(fn, deps) {
     rlang::abort("`useMemo()` must be called inside a component `render()` function.")
   }
 
-  slot <- next_hook_slot(ctx)
+  slot <- next_hook_slot(ctx, "useMemo")
   cache_key <- paste0("memo_", slot)
   current_deps <- resolve_dep_values(ctx$state_store, deps)
   cached <- ctx$memo_cache[[cache_key]]
@@ -154,7 +154,7 @@ useCallback <- function(input_id, fn) {
     rlang::abort("`useCallback()` must be called inside a component `render()` function.")
   }
 
-  slot <- next_hook_slot(ctx)
+  next_hook_slot(ctx, "useCallback")
   ctx$callback_handlers[[input_id]] <- fn
   invisible(NULL)
 }

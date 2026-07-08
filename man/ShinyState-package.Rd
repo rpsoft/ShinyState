@@ -5,7 +5,7 @@
 \alias{ShinyState-package}
 \title{ShinyState: React-Style Hooks for Shiny Applications}
 \description{
-Provides a React-inspired component and hook system for Shiny applications. Write UI with useState(), useEffect(), useMemo(), and useReducer() instead of Shiny's reactive primitives. Supports multi-page apps with a dormant tab lifecycle and hash-based URL routing.
+A React- and Vue-inspired component and hook system for Shiny applications. Write components with useState(), useEffect(), useMemo(), useReducer(), computed values, lifecycle hooks, and watch(), instead of Shiny's reactive primitives. A client-side DOM-patching renderer preserves focus, cursor, and scroll across updates. Supports shared stores, child components with props, multi-page apps with a dormant tab lifecycle, and hash-based URL routing.
 
 ShinyState lets you build Shiny applications using a React-inspired
 component model with hooks instead of reactive expressions.

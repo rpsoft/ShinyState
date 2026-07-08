@@ -1,3 +1,48 @@
+# ShinyState 0.7.0
+
+A major release that reworks the rendering model and adds a full
+component/lifecycle system. **This release contains breaking API changes.**
+
+## New features
+
+* **DOM-patching renderer.** Components now render into a single
+  `div.shinystate-output` that a custom Shiny output binding patches in place
+  (like a virtual DOM) instead of replacing wholesale. Keyboard focus, cursor
+  position, text selection, and scroll survive re-renders automatically. Opt a
+  subtree out of patching with `data-shinystate-preserve`.
+* **Zero-boilerplate bound inputs.** `bind*()` helpers are called inside
+  `render()` with no `ns` argument, read their value from state, and register
+  their state-write handler automatically. `bindButton()` takes an inline
+  `onClick`.
+* **`shinyStateApp()`** builds a complete app from components: a single
+  component becomes a one-page app; several named components become a routed
+  multi-page navbar app.
+* **Shared stores.** `createStore()` / `useStore()` provide cross-component
+  state with automatic subscription and cleanup.
+* **Computed values.** `component(..., computed = list(name = function(state)))`
+  exposes cached derived values as `state$name`.
+* **Lifecycle hooks.** `onMounted()`, `onUnmounted()`, `onActivated()`,
+  `onDeactivated()` (the latter two map to dormant tab wake/sleep).
+* **`watch(fields, fn, immediate)`** runs `fn(new, old)` on field changes.
+* **Child components.** `mount(child, props = list(...))` inside a parent's
+  `render()` nests a component and passes reactive props.
+* **`useRoute()`** reads the active hash route from any component.
+* **Guardrails.** A warning fires when hooks are called in a different order
+  between renders; `options(shinystate.debug = TRUE)` logs renders, dormant
+  transitions, and navigation.
+
+## Breaking changes
+
+* `bind*()` and `bindButton()` no longer take a leading `ns` argument and must
+  be called inside `render()`; argument order changed and `value` now defaults
+  to the state field. `debounce_ms` is removed.
+* `preview()` is removed — the DOM-patching renderer makes explicit preview
+  regions unnecessary; put dynamic content anywhere in `render()`.
+* Components render into one patched container; the auto-preview partition
+  slots (`shinystate_auto_preview_N`) and the `.refresh_controls` flag are
+  gone.
+* `mount()` gained a `props` argument.
+
 # ShinyState 0.6.0
 
 ## New features

@@ -10,6 +10,7 @@ new_hook_context <- function(component_id, state_store, schedule_rerender, ns = 
   env$input <- input
   env$hook_index <- 0L
   env$hook_effect_index <- 0L
+  env$hook_sequence <- character(0)
   env$memo_cache <- list()
   env$effect_specs <- list()
   env$callback_handlers <- list()
@@ -31,8 +32,9 @@ with_hook_context <- function(ctx, expr) {
 }
 
 #' @keywords internal
-next_hook_slot <- function(ctx) {
+next_hook_slot <- function(ctx, type = "hook") {
   ctx$hook_index <- ctx$hook_index + 1L
+  ctx$hook_sequence <- c(ctx$hook_sequence, type)
   ctx$hook_index
 }
 
@@ -40,4 +42,24 @@ next_hook_slot <- function(ctx) {
 reset_hook_index <- function(ctx) {
   ctx$hook_index <- 0L
   ctx$hook_effect_index <- 0L
+  ctx$hook_sequence <- character(0)
+}
+
+#' @keywords internal
+check_hook_order <- function(ctx) {
+  prev <- ctx$prev_hook_sequence
+  cur <- ctx$hook_sequence
+  if (!is.null(prev) && !identical(prev, cur) && !isTRUE(ctx$hook_order_warned)) {
+    ctx$hook_order_warned <- TRUE
+    rlang::warn(sprintf(
+      paste0(
+        "ShinyState: hooks in component '%s' were called in a different order ",
+        "than the previous render. Call hooks unconditionally and in the same ",
+        "order on every render (put conditions inside the hook, not around it)."
+      ),
+      ctx$component_id
+    ))
+  }
+  ctx$prev_hook_sequence <- cur
+  invisible(NULL)
 }

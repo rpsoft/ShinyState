@@ -1,11 +1,14 @@
 Package: ShinyState
 Title: React-Style Hooks for Shiny Applications
-Version: 0.6.0
+Version: 0.7.0
 Authors@R: person("Jesus", "Rodriguez Perez", role = c("aut", "cre"), email = "rpsoft@gmail.com")
-Description: Provides a React-inspired component and hook system for Shiny
-    applications. Write UI with useState(), useEffect(), useMemo(), and
-    useReducer() instead of Shiny's reactive primitives. Supports multi-page
-    apps with a dormant tab lifecycle and hash-based URL routing.
+Description: A React- and Vue-inspired component and hook system for Shiny
+    applications. Write components with useState(), useEffect(), useMemo(),
+    useReducer(), computed values, lifecycle hooks, and watch(), instead of
+    Shiny's reactive primitives. A client-side DOM-patching renderer preserves
+    focus, cursor, and scroll across updates. Supports shared stores, child
+    components with props, multi-page apps with a dormant tab lifecycle, and
+    hash-based URL routing.
 License: MIT + file LICENSE
 URL: https://github.com/rpsoft/ShinyState
 BugReports: https://github.com/rpsoft/ShinyState/issues

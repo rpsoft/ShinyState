@@ -205,17 +205,15 @@ render = function(state, ns) {
 
 ---
 
-## `useCallback()` + `bindButton()`
+## `bindButton()` with `onClick`
 
-Wire button clicks to state updates:
+Wire button clicks to state updates — the handler lives on the button:
 
 ```{r}
-render = function(state, ns) {
-  useCallback("inc", function(s) {
+render = function(state) {
+  bindButton("inc", "+", onClick = function(s) {
     s$set(count = s$count + 1L)
   })
-
-  bindButton(ns, "inc", "+")
 }
 ```
 
@@ -225,55 +223,53 @@ render = function(state, ns) {
 
 ## Why bound helpers?
 
-`render()` output is rebuilt when state changes.
+`render()` output is patched into the DOM when state changes.
 
-Plain Shiny inputs and buttons reset on re-render and can fire handlers twice.
+Plain Shiny inputs and buttons can reset on re-render and fire handlers twice.
 
-Use **`bindButton()`**, **`bindTextInput()`**, and related `bind*()` helpers — they dispatch through a single internal event channel.
+Use **`bindButton()`**, **`bindTextInput()`**, and related `bind*()` helpers —
+they dispatch through a single internal event channel. Call them **inside
+`render()`**: no `ns`, no separate `useInput()`, value read from state.
 
 ---
 
-## Text inputs: `useInput()` + `bindTextInput()`
+## Text inputs: `bindTextInput()`
 
 ```{r}
-render = function(state, ns) {
-  useInput("title")
-
+render = function(state) {
   bindTextInput(
-    ns, "title", "Title", state$title,
+    "title", "Title",
     placeholder = "Enter a title",
-    update = "input"   # or "blur" (default)
+    update = "input"   # live (default); or "blur"
   )
 }
 ```
 
-- `useInput()` registers a callback that writes event values into state
-- `bindTextInput()` renders a text field wired to that callback
+- Reads its value from `state$title` and writes changes back automatically
+- No `ns`, no `useInput()` — one line per field
 
 ---
 
 ## Text input focus
 
-Rebuilding text inputs on every keystroke destroys focus.
+Rebuilding text inputs on every keystroke would destroy focus.
 
-ShinyState **automatically splits** your UI when typing controls are present:
+ShinyState renders into a single container that is **patched in place** (like a
+virtual DOM): only changed nodes are touched, and the element you are currently
+editing is never rebuilt.
 
-- **`bindTextInput()`**, **`bindTextArea()`**, and **`bindNumericInput()`** stay mounted in the shell
-- **Everything else** (headings, tables, summaries, preview panels) live-updates on its own
-- Works in **`tagList()`**, **`fluidPage()`**, **`fluidRow()` / `column()`** layouts
-
-No `preview()` wrapper needed in normal apps.
+- Type freely while summaries, tables, and previews update around you
+- Cursor position, selection, and scroll all survive
+- Works in `tagList()`, `fluidPage()`, `fluidRow()` / `column()` layouts
 
 ```{r}
-render = function(state, ns) {
-  useInput("title")
-
+render = function(state) {
   fluidPage(
     fluidRow(
       column(
         6,
-        bindTextInput(ns, "title", "Title", state$title, update = "input"),
-        bindTextArea(ns, "notes", "Notes", state$notes, update = "input")
+        bindTextInput("title", "Title"),
+        bindTextArea("notes", "Notes")
       ),
       column(
         6,
@@ -286,29 +282,8 @@ render = function(state, ns) {
 }
 ```
 
-Use `update = "input"` for live preview while typing; `update = "blur"` (default) syncs on click-away.
-
----
-
-## Optional: `preview()`
-
-Use `preview()` only when you need a **manual** split inside a mixed subtree:
-
-```{r}
-render = function(state, ns) {
-  useInput("title")
-
-  tagList(
-    bindTextInput(ns, "title", "Title", state$title, update = "input"),
-    preview(
-      h3(state$title),
-      p("Characters:", nchar(state$title))
-    )
-  )
-}
-```
-
-Most apps never need this — auto-split handles it.
+Use `update = "input"` (default) for live updates while typing; `update = "blur"`
+syncs on click-away.
 
 ---
 
@@ -351,14 +326,11 @@ Two-column `fluidPage()` layout:
 counter <- component(
   id = "counter",
   state = useState(count = 0L),
-  render = function(state, ns) {
-    useCallback("inc", function(s) s$set(count = s$count + 1L))
-    useCallback("dec", function(s) s$set(count = s$count - 1L))
-
+  render = function(state) {
     tagList(
       h3(paste("Count:", state$count)),
-      bindButton(ns, "dec", "−"),
-      bindButton(ns, "inc", "+")
+      bindButton("dec", "−", onClick = function(s) s$set(count = s$count - 1L)),
+      bindButton("inc", "+", onClick = function(s) s$set(count = s$count + 1L))
     )
   }
 )
@@ -384,55 +356,39 @@ shiny::runApp("inst/examples/counter")
 
 ## Multi-page apps
 
-Use Shiny tabs + one component per page. Give each tab an explicit `value` and use [serve_dormant()] so hidden tabs stay **dormant** (no render, effects, or events):
+Pass **named** components to `shinyStateApp()`: one tab per component, the
+dormant lifecycle, and URL routing, all wired for you. Names become page ids.
 
 ```{r}
-shinyApp(
-  ui = navbarPage(
-    id = "pages",
-    tabPanel("Dashboard", mount(counter_component), value = "dashboard"),
-    tabPanel("Search", mount(filter_component), value = "search"),
-    tabPanel("Reducer", mount(reducer_component), value = "reducer")
-  ),
-  server = function(input, output, session) {
-    serve_dormant(
-      session = session, input = input, output = output,
-      navbar = "pages",
-      dashboard = counter_component,
-      search = filter_component,
-      reducer = reducer_component
-    )
-  }
+shinyStateApp(
+  title = "My App",
+  routing = "hash",
+  dashboard = counter_component,
+  search = filter_component,
+  reducer = reducer_component
 )
 ```
 
 Component state is preserved when you switch tabs — only the visible page runs.
-
-For a single always-visible component, use [serve()] as before.
+Hidden tabs are **dormant** (no render, effects, or events). A single component
+becomes a one-page app.
 
 ---
 
 ## URL routing
 
-Add `routing = "hash"` and every page gets a bookmarkable URL (`#!/dashboard`,
+`routing = "hash"` gives every page a bookmarkable URL (`#!/dashboard`,
 `#!/search`, ...). The browser back/forward buttons navigate between tabs:
-
-```{r}
-serve_dormant(
-  session = session, input = input, output = output,
-  navbar = "pages",
-  routing = "hash",
-  dashboard = counter_component,
-  search = filter_component
-)
-```
 
 - Component names double as page names in the URL
 - Opening `https://myapp/#!/search` starts the app on the Search tab
 - Unknown routes warn and fall back to the first component's page
 - Link between pages with `route_link("search", "Go to search")` — a plain
   `<a href="#!/search">` anchor, no JavaScript needed
-- Plain in-page anchors (`#section`) are left alone
+- Read the current route in any component with `useRoute()`
+
+Under the hood this is [serve_dormant()] + [router_server()]; call them directly
+if you build the `navbarPage` yourself.
 
 ---
 
@@ -454,35 +410,22 @@ Shows:
 
 ## Shared state across components
 
-Components are isolated by default.
-
-For cross-page state, use a small store with subscribers:
-
-```{r}
-store <- createStore(list(count = 0L, history = character()))
-
-store$get()
-store$set(count = 1L)
-store$subscribe(function(data) { ... })
-```
-
----
-
-## Subscribing in an effect
+Components are isolated by default. For cross-page state, create a store and
+use it from any component with `useStore()`:
 
 ```{r}
-effect(
-  deps = NULL,
-  function(state) {
-    unsubscribe <- shared_store$subscribe(function(data) {
-      state$set(count = data$count, history = data$history)
-    })
+app_store <- createStore(count = 0L, history = character())
 
-    state$set(count = shared_store$get()$count)
-    unsubscribe  # cleanup on unmount
-  }
-)
+controls <- component(id = "controls", render = function(state) {
+  store <- useStore(app_store)              # subscribes; auto-cleans up
+  bindButton("inc", "+", onClick = function(s) {
+    store$set(count = store$count + 1L)      # notifies every subscriber
+  })
+})
 ```
+
+Every component using `useStore(app_store)` re-renders when the store changes.
+No manual subscribe/unsubscribe, no effect plumbing.
 
 ---
 
@@ -504,45 +447,44 @@ shiny::runApp(
 ShinyState still uses Shiny internally, but hides it:
 
 1. Each component has a private state store
-2. `render()` runs in a hook context
+2. `render()` runs in a hook context and returns UI from state
 3. State changes bump an internal version counter
-4. **Auto-split:** typing controls and other `bind*()` inputs stay in the stable shell
-5. Display-only regions render in separate `uiOutput` slots that update live
-6. While typing, only preview slots refresh — inputs keep focus
-7. Effects run after render when deps change
-8. Hidden tabs can stay **dormant** via [serve_dormant()] — no render, effects, or events until shown
-
-Bootstrap / Shiny CSS from `fluidPage()` is preserved after auto-split.
+4. **DOM patch:** the new UI is diffed against the live DOM; only changed nodes move
+5. The element you're editing (focused input) is never rebuilt — focus and cursor survive
+6. Effects run after render when deps change
+7. Hidden tabs can stay **dormant** via [serve_dormant()] — no render, effects, or events until shown
 
 ---
 
 ## Mental model
 
-| React | ShinyState |
-|-------|------------|
+| React / Vue | ShinyState |
+|-------------|------------|
 | Component | `component()` |
 | `useState` | `useState()` |
 | `useEffect` | `effect()` / `useEffect()` |
+| computed | `computed = list(...)` |
+| `watch` | `watch(fields, fn)` |
 | `useMemo` | `useMemo()` |
 | `useReducer` | `useReducer()` |
-| onClick handler | `useCallback()` + `bindButton()` |
-| onChange handler | `useInput()` + `bindTextInput()` / `bind*()` |
-| Live output region | Automatic (or optional `preview()`) |
-| Tab lifecycle | `serve_dormant()` |
-| URL routing | `serve_dormant(routing = "hash")` + `route_link()` |
+| onClick handler | `bindButton(onClick = ...)` |
+| onChange / v-model | `bind*()` inputs |
+| onMounted / onActivated | `onMounted()` / `onActivated()` |
+| Pinia / Zustand store | `createStore()` / `useStore()` |
+| props | `mount(child, props = ...)` |
+| router | `routing = "hash"` + `useRoute()` |
 
 ---
 
 ## Best practices
 
 - Keep one concern per component
-- Prefer `bindButton()` and `bind*()` helpers inside `render()` — not raw Shiny inputs
-- Put summaries, tables, and charts anywhere in `render()` — auto-split keeps typing controls stable
-- Use `update = "input"` on text fields when you want live preview while typing
-- Use `effect()` for side effects, not UI logic
-- Use `useMemo()` for expensive derived values
-- Use `serve_dormant()` for tabbed apps so hidden pages stay dormant
-- Mount multiple components with `mount()` / `serve()` / `serve_dormant()`
+- Call `bind*()` helpers and hooks inside `render()`, in the same order every render
+- Put summaries, tables, and charts anywhere in `render()` — the patcher keeps inputs stable
+- Use `computed` / `useMemo()` for derived and expensive values
+- Use `effect()` / `watch()` for side effects, not UI logic
+- Share cross-component state with `createStore()` / `useStore()`
+- Build whole apps with `shinyStateApp()`
 
 ---
 
@@ -552,44 +494,45 @@ Bootstrap / Shiny CSS from `fluidPage()` is preserved after auto-split.
 |---------|----------------|
 | Blank component area | Old app process still running; restart R + app |
 | Handler fires twice | Used `actionButton()` instead of `bindButton()` |
-| Text input loses focus | Use `bindTextInput()` not raw `textInput()`; reinstall v0.4.0+ |
-| Preview only updates on blur | Text field uses `update = "blur"`; try `update = "input"` |
-| Layout looks unstyled | Reinstall v0.4.0+ (Bootstrap deps preserved after auto-split) |
-| `bindButton` / `preview` not found | Reinstall latest package version |
-| Hidden tab still runs effects | Use [serve_dormant()] with tab `value` ids |
+| `bind*()` errors "must be called inside render()" | Call bound inputs inside `render()`, not in the UI |
+| Hook-order warning | A hook is called conditionally; call hooks every render |
+| Prop not updating in a child | Parent must re-render (change parent state) to push props |
+| Function not found | Reinstall latest package version |
 
 ---
 
 ## API cheat sheet
 
 ```{r}
-component(id, ..., render)
-useState(...)
-effect(deps, fn)
-useEffect(fn, deps)
+component(id, ..., render, computed = list())
+useState(...)                       # state
+effect(deps, fn) / useEffect(fn, deps)
+watch(fields, fn, immediate)        # fn(new, old)
 useMemo(fn, deps)
 useReducer(reducer, initial)
-useCallback(input_id, fn)
-useInput(input_id, state_field)
-preview(...)   # optional; auto-split is usually enough
-bindButton(ns, input_id, label)
-bindTextInput(ns, input_id, label, value, update = "input")
-bindSelect(ns, input_id, label, choices, selected)
-mount(component)
-serve(component, input, output, session)
-serve_dormant(session, input, output, navbar, routing = "hash", ...)
-router_server(session, input, navbar, tabs, default)
-route_link(page, label)
+onMounted(fn) / onUnmounted(fn)
+onActivated(fn) / onDeactivated(fn) # dormant tab wake/sleep
+
+# bound inputs — inside render(), no ns
+bindTextInput(input_id, label)
+bindSelect(input_id, label, choices)
+bindButton(input_id, label, onClick = function(s) ...)
+
+# stores, routing, apps
+createStore(...) / useStore(store)
+useRoute() / route_link(page, label)
+mount(component, props = list())
+shinyStateApp(..., title, routing = "hash")
 ```
 
 ---
 
 ## Next steps
 
-1. Run all four bundled examples
+1. Run the bundled examples (counter, multipage, shared-store, children, inputs-gallery)
 2. Convert one existing module to `component()`
-3. Extract shared app state into a store pattern
-4. Build a multi-tab dashboard from small components
+3. Extract shared app state into a `createStore()`
+4. Build a multi-tab dashboard with `shinyStateApp()`
 
 ---
 
@@ -604,4 +547,5 @@ Examples:
 - `examples/counter`
 - `examples/multipage`
 - `examples/shared-store`
+- `examples/children`
 - `examples/inputs-gallery`
